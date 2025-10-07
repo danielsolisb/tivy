@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'CoreApps.main',
     'CoreApps.reports',
     'CoreApps.users',
+    # DRF
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
