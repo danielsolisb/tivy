@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Paso 2: Elige un Horario{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Paso 2: Elige un Horario</h1>
+    <p class="lead">Estás agendando el servicio: <strong>{{ service.name }}</strong></p>
+    <hr>
+    
+    <h4>Horarios Disponibles para [Fecha de ejemplo]</h4>
+    
+    <form method="post">
+        {% csrf_token %}
+        <div class="d-flex flex-wrap gap-2">
+            {% for slot in available_slots %}
+                <button type="submit" name="selected_time" value="{{ slot }}" class="btn btn-outline-primary">{{ slot }}</button>
+            {% empty %}
+                <p>No hay horarios disponibles para la fecha seleccionada.</p>
+            {% endfor %}
+        </div>
+    </form>
+</div>
+{% endblock %}
