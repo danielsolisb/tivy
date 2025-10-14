@@ -1,15 +1,11 @@
 from django.contrib import admin
-from .models import AvailabilityRule, Appointment
+from .models import AvailabilityBlock, Appointment # Cambiamos la importación
 
-@admin.register(AvailabilityRule)
-class AvailabilityRuleAdmin(admin.ModelAdmin):
-    list_display = ('client', 'get_day_of_week_display', 'start_time', 'end_time')
+@admin.register(AvailabilityBlock)
+class AvailabilityBlockAdmin(admin.ModelAdmin):
+    list_display = ('client', 'start_time', 'end_time')
     list_filter = ('client',)
-    # Muestra el nombre del día en lugar del número
-    def get_day_of_week_display(self, obj):
-        return obj.get_day_of_week_display()
-    get_day_of_week_display.short_description = 'Día de la Semana'
-
+    date_hierarchy = 'start_time' # Permite navegar por fechas fácilmente
 
 @admin.register(Appointment)
 class AppointmentAdmin(admin.ModelAdmin):

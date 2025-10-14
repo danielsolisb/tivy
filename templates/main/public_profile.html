@@ -20,6 +20,13 @@
         
         <div class="col-md-8">
             <h3>Paso 1: Elige un Servicio</h3>
+            {# --- AÑADIMOS ESTO PARA MOSTRAR ERRORES --- #}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-warning">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
             <form method="post">
                 {% csrf_token %}
                 <div class="list-group">

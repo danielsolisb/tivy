@@ -8,15 +8,28 @@
     <p class="lead">Estás agendando el servicio: <strong>{{ service.name }}</strong></p>
     <hr>
     
-    <h4>Horarios Disponibles para [Fecha de ejemplo]</h4>
+    {# --- SELECCIÓN DE FECHA --- #}
+    <h5>Selecciona una fecha:</h5>
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        {% for day in available_days %}
+            <a href="?date={{ day.date_str }}" class="btn {% if day.date_str == target_date_str %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                {{ day.name }}<br>
+                <small>{{ day.date|date:"d M" }}</small>
+            </a>
+        {% endfor %}
+    </div>
+    
+    {# --- MOSTRAR HORARIOS PARA LA FECHA SELECCIONADA --- #}
+    <h4>Horarios Disponibles para el {{ target_date_display }}</h4>
     
     <form method="post">
         {% csrf_token %}
+        <input type="hidden" name="selected_date" value="{{ target_date_str }}">
         <div class="d-flex flex-wrap gap-2">
             {% for slot in available_slots %}
-                <button type="submit" name="selected_time" value="{{ slot }}" class="btn btn-outline-primary">{{ slot }}</button>
+                <button type="submit" name="selected_time" value="{{ slot }}" class="btn btn-outline-success">{{ slot }}</button>
             {% empty %}
-                <p>No hay horarios disponibles para la fecha seleccionada.</p>
+                <div class="alert alert-info">No hay horarios disponibles para la fecha seleccionada. Por favor, elige otro día.</div>
             {% endfor %}
         </div>
     </form>
