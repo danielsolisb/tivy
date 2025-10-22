@@ -1,64 +1,111 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Paso 3: Confirma tu Cita{% endblock %}
+{% block title %}Último Paso - Confirmar Reserva{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Paso 3: Confirma los Detalles</h1>
+{# --- Estilos con colores del tema --- #}
+<style>
+    :root {
+        --theme-primary: {{ business.primary_color|default:'#0d6efd' }};
+        --theme-secondary: {{ business.secondary_color|default:'#f8f9fa' }}; /* Usar secundario para fondo suave */
+    }
+    body { background-color: var(--theme-secondary); } /* Fondo suave */
+    .btn-primary-theme {
+        background-color: var(--theme-primary); border-color: var(--theme-primary); color: white;
+        padding: 0.75rem 1.25rem; font-size: 1.1rem;
+    }
+    .btn-primary-theme:hover { opacity: 0.9; background-color: var(--theme-primary); border-color: var(--theme-primary); color: white; }
+    .card-summary { border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 2rem; background-color: white; }
+    .form-control { border-radius: 8px; padding: 0.75rem 1rem; }
+    .form-label { font-weight: 500; }
+    /* Iconos (requiere Font Awesome o similar, o usar SVGs/imágenes) */
+    .icon-input { position: relative; }
+    .icon-input .icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #aaa; }
+</style>
+
+<div class="container py-5" style="max-width: 500px;">
+    {# --- Indicador de Pasos (Opcional) --- #}
+    {# <div class="d-flex justify-content-center align-items-center mb-4"> ... </div> #}
+
+    <h2 class="text-center mb-4">Último Paso</h2>
     
-    <div class="card mb-4">
-        <div class="card-header">
-            Resumen de tu Cita
-        </div>
+    {# --- Resumen de la Cita (Estilo Card) --- #}
+    <div class="card card-summary">
         <div class="card-body">
-            <p><strong>Profesional:</strong> {{ client.display_name }}</p>
-            <p><strong>Servicio:</strong> {{ service.name }}</p>
-            <p><strong>Fecha y Hora:</strong> {{ selected_datetime|date:"l, d \d\e F" }} a las {{ selected_datetime|time:"H:i" }}</p>
+            <div class="d-flex align-items-center mb-3">
+                {# Icono del servicio (ejemplo) #}
+                <div class="me-3 p-2 bg-light rounded-circle d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                    <i class="fas fa-cut"></i> {# Reemplazar con icono real o imagen #}
+                </div>
+                <div>
+                    <h5 class="card-title mb-0">{{ service.name }}</h5>
+                    <p class="card-text text-muted mb-0">
+                        {{ staff_member.name }} - {{ selected_datetime|date:"d \d\e F" }}, {{ selected_datetime|time:"H:i A" }}
+                    </p>
+                </div>
+                {# Icono de ubicación (local/domicilio) #}
+                <div class="ms-auto">
+                    {# --- LÍNEA CORREGIDA --- #}
+                    {% if service.location_type == 'DOMICILIO' or service.location_type == 'AMBOS' and request.POST.location_choice == 'domicilio' %}
+                        <i class="fas fa-home text-muted" title="Servicio a domicilio"></i>
+                    {% else %}
+                        <i class="fas fa-store-alt text-muted" title="Servicio en local"></i>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
     
-    <h4>Completa tus datos para finalizar</h4>
-    <form method="post">
+    {# --- Mensajes de Error --- #}
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-danger">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    {# --- Formulario --- #}
+    <form method="post" id="confirm-form">
         {% csrf_token %}
         
-        {# --- SECCIÓN DE EMAIL (SIEMPRE VISIBLE) --- #}
-        <div class="mb-3">
-            <label for="id_email" class="form-label">Email</label>
-            <input type="email" name="email" class="form-control" id="id_email" required>
-            <div id="email-loader" class="form-text" style="display: none;">Verificando...</div>
+        <div class="mb-3 icon-input">
+            <label for="id_email" class="form-label">Correo Electrónico</label>
+            <input type="email" name="email" class="form-control" id="id_email" required placeholder="tu.correo@ejemplo.com">
+            <i class="fas fa-envelope icon"></i> {# Icono ejemplo #}
+            <div id="email-loader" class="form-text mt-1" style="display: none; color: var(--theme-primary);">Verificando...</div>
         </div>
         
-        {# --- CONTENEDOR DE DATOS ADICIONALES (INICIALMENTE OCULTO) --- #}
         <div id="customer-details-container" style="display: none;">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="id_first_name" class="form-label">Nombre</label>
-                    <input type="text" name="first_name" class="form-control" id="id_first_name" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="id_last_name" class="form-label">Apellido</label>
-                    <input type="text" name="last_name" class="form-control" id="id_last_name" required>
-                </div>
+             <div class="mb-3">
+                <label for="id_first_name" class="form-label">Nombre</label>
+                <input type="text" name="first_name" class="form-control" id="id_first_name" required>
             </div>
-            <div class="mb-3">
-                <label for="id_phone_number" class="form-label">Teléfono (Opcional)</label>
-                <input type="text" name="phone_number" class="form-control" id="id_phone_number">
+             <div class="mb-3">
+                <label for="id_last_name" class="form-label">Apellido</label>
+                <input type="text" name="last_name" class="form-control" id="id_last_name" required>
+            </div>
+            <div class="mb-3 icon-input">
+                <label for="id_phone_number" class="form-label">Teléfono</label>
+                <input type="tel" name="phone_number" class="form-control" id="id_phone_number" placeholder="09xxxxxxxx">
+                 <i class="fas fa-phone icon"></i> {# Icono ejemplo #}
             </div>
         </div>
 
-        {# --- LÓGICA DE UBICACIÓN (SE MANTIENE IGUAL EN EL HTML) --- #}
+        {# --- Lógica de Ubicación --- #}
         {% if service.location_type == 'DOMICILIO' %}
-            <div class="mb-3">
-                <label for="id_address" class="form-label">Dirección para el servicio a domicilio</label>
-                <input type="text" name="address" class="form-control" id="id_address" required>
+            <div class="mb-3 icon-input">
+                <label for="id_address" class="form-label">Dirección del Domicilio</label>
+                <input type="text" name="address" class="form-control" id="id_address" required placeholder="Av. Principal, Edificio Sol, Apto 5">
+                <i class="fas fa-map-marker-alt icon"></i> {# Icono ejemplo #}
+                 {# TODO: Añadir botón para obtener GPS #}
             </div>
         {% elif service.location_type == 'AMBOS' %}
             <div class="mb-3">
                 <p><strong>¿Dónde deseas recibir el servicio?</strong></p>
-                <div class="form-check">
+                <div class="form-check mb-2">
                     <input class="form-check-input" type="radio" name="location_choice" id="choice_local" value="local" checked>
                     <label class="form-check-label" for="choice_local">
-                        En el local: {{ client.address }}
+                        En el local: {{ business.address }}
                     </label>
                 </div>
                 <div class="form-check">
@@ -67,23 +114,26 @@
                         A domicilio
                     </label>
                 </div>
-                <div id="address-field-container" class="mt-2" style="display:none;">
-                    <label for="id_address" class="form-label">Tu dirección</label>
-                    <input type="text" name="address" class="form-control" id="id_address_ambos"> {# ID único para evitar conflictos #}
+                <div id="address-field-container" class="mt-3" style="display:none;">
+                     <div class="mb-3 icon-input">
+                        <label for="id_address_ambos" class="form-label">Tu dirección</label>
+                        <input type="text" name="address" class="form-control" id="id_address_ambos" placeholder="Av. Principal, Edificio Sol, Apto 5">
+                         <i class="fas fa-map-marker-alt icon"></i> {# Icono ejemplo #}
+                         {# TODO: Añadir botón para obtener GPS #}
+                    </div>
                 </div>
             </div>
         {% endif %}
 
         <div class="d-grid mt-4">
-            <button type="submit" class="btn btn-primary btn-lg">Confirmar y Agendar Cita</button>
+            <button type="submit" class="btn btn-primary-theme">Confirmar Reserva</button>
         </div>
     </form>
 </div>
 
-{# --- SCRIPT UNIFICADO (FUERA DE CUALQUIER IF DE DJANGO) --- #}
+{# --- SCRIPT UNIFICADO --- #}
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- LÓGICA DE VERIFICACIÓN DE EMAIL ---
         const emailInput = document.getElementById('id_email');
         const detailsContainer = document.getElementById('customer-details-container');
         const firstNameInput = document.getElementById('id_first_name');
@@ -91,10 +141,19 @@
         const phoneInput = document.getElementById('id_phone_number');
         const emailLoader = document.getElementById('email-loader');
 
+        const showDetails = (show = true) => {
+             detailsContainer.style.display = show ? 'block' : 'none';
+        };
+
         emailInput.addEventListener('blur', async () => {
             const email = emailInput.value.trim();
+            showDetails(false); // Ocultar mientras verifica
+            firstNameInput.readOnly = false; // Resetear readOnly
+            lastNameInput.readOnly = false;
+            phoneInput.readOnly = false; // Permitir edición de teléfono por defecto
+
             if (email.length < 5 || !email.includes('@')) {
-                detailsContainer.style.display = 'block'; // Mostrar si el email es borrado o inválido
+                showDetails(true); // Mostrar para nuevo usuario si el email es inválido
                 return;
             }
 
@@ -108,45 +167,69 @@
                     firstNameInput.value = data.first_name;
                     lastNameInput.value = data.last_name;
                     phoneInput.value = data.phone_number || '';
+                    
                     firstNameInput.readOnly = true;
                     lastNameInput.readOnly = true;
+                    
+                    const serviceType = "{{ service.location_type }}";
+                    const locationChoiceRadio = document.querySelector('input[name="location_choice"]:checked');
+                    const isDomicilioSelected = locationChoiceRadio && locationChoiceRadio.value === 'domicilio';
+
+                    if (serviceType === 'LOCAL' || (serviceType === 'AMBOS' && !isDomicilioSelected)) {
+                         phoneInput.readOnly = false;
+                         phoneInput.required = true;
+                    } else {
+                         phoneInput.readOnly = true;
+                         phoneInput.required = false;
+                    }
+
                 } else {
                     firstNameInput.value = '';
                     lastNameInput.value = '';
                     phoneInput.value = '';
                     firstNameInput.readOnly = false;
                     lastNameInput.readOnly = false;
+                    phoneInput.readOnly = false;
+                    firstNameInput.required = true;
+                    lastNameInput.required = true;
+                    phoneInput.required = true;
                 }
                 
-                detailsContainer.style.display = 'block';
+                showDetails(true);
 
             } catch (error) {
                 console.error('Error al verificar el cliente:', error);
-                detailsContainer.style.display = 'block'; // Mostrar los campos para llenado manual si hay error
+                showDetails(true);
+                firstNameInput.readOnly = false;
+                lastNameInput.readOnly = false;
+                phoneInput.readOnly = false;
             } finally {
                 emailLoader.style.display = 'none';
             }
         });
 
-        // --- LÓGICA CONDICIONAL PARA EL SELECTOR DE UBICACIÓN ---
         const radioDomicilio = document.getElementById('choice_domicilio');
-        // Si el elemento 'choice_domicilio' existe, entonces el servicio es de tipo 'AMBOS'
         if (radioDomicilio) {
             const radioLocal = document.getElementById('choice_local');
             const addressContainer = document.getElementById('address-field-container');
             const addressInput = document.getElementById('id_address_ambos');
 
             const toggleAddressField = () => {
-                if (radioDomicilio.checked) {
-                    addressContainer.style.display = 'block';
-                    addressInput.required = true;
-                } else {
-                    addressContainer.style.display = 'none';
-                    addressInput.required = false;
+                const isDomicilio = radioDomicilio.checked;
+                addressContainer.style.display = isDomicilio ? 'block' : 'none';
+                addressInput.required = isDomicilio;
+                
+                // Actualizar estado readOnly/required del teléfono al cambiar opción
+                // Solo si el usuario ya fue verificado como existente (nombre bloqueado)
+                if(firstNameInput.readOnly) { 
+                     phoneInput.readOnly = isDomicilio;
+                     phoneInput.required = !isDomicilio;
                 }
             };
             radioDomicilio.addEventListener('change', toggleAddressField);
             radioLocal.addEventListener('change', toggleAddressField);
+            // Ejecutar una vez al cargar por si domicilio está preseleccionado
+            toggleAddressField(); 
         }
     });
 </script>

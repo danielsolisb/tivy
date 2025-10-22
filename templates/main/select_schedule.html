@@ -6,9 +6,9 @@
 <div class="container">
     <h1>Paso 2: Elige un Horario</h1>
     <p class="lead">Estás agendando el servicio: <strong>{{ service.name }}</strong></p>
+    <p>Con el profesional: <strong>{{ staff_member.name }}</strong></p>
     <hr>
     
-    {# --- SELECCIÓN DE FECHA --- #}
     <h5>Selecciona una fecha:</h5>
     <div class="d-flex flex-wrap gap-2 mb-4">
         {% for day in available_days %}
@@ -19,7 +19,6 @@
         {% endfor %}
     </div>
     
-    {# --- MOSTRAR HORARIOS PARA LA FECHA SELECCIONADA --- #}
     <h4>Horarios Disponibles para el {{ target_date_display }}</h4>
     
     <form method="post">
@@ -29,7 +28,7 @@
             {% for slot in available_slots %}
                 <button type="submit" name="selected_time" value="{{ slot }}" class="btn btn-outline-success">{{ slot }}</button>
             {% empty %}
-                <div class="alert alert-info">No hay horarios disponibles para la fecha seleccionada. Por favor, elige otro día.</div>
+                <div class="alert alert-info">No hay horarios disponibles para la fecha seleccionada. Por favor, elige otro día o profesional.</div>
             {% endfor %}
         </div>
     </form>

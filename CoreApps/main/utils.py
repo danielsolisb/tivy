@@ -4,26 +4,31 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from CoreApps.scheduling.models import AvailabilityBlock, Appointment
 
-def generate_available_slots(client, service, target_date):
+def generate_available_slots(staff_member, service, target_date):
     """
-    Calcula los slots de tiempo disponibles con una lógica de avance híbrida.
+    Calcula los slots de tiempo disponibles para un MIEMBRO DEL PERSONAL,
+    un servicio y una fecha específicos.
     """
     available_slots = []
     
+    # 1. Buscar los bloques de disponibilidad para el MIEMBRO DEL PERSONAL seleccionado
     availability_blocks = AvailabilityBlock.objects.filter(
-        client=client,
+        staff_member=staff_member,
         start_time__date=target_date
     ).order_by('start_time')
 
     if not availability_blocks:
         return []
 
-    existing_appointments = Appointment.objects.filter(client=client, start_time__date=target_date)
+    # 2. Obtener las citas ya agendadas para ESE MIEMBRO DEL PERSONAL
+    existing_appointments = Appointment.objects.filter(
+        staff_member=staff_member, 
+        start_time__date=target_date
+    )
 
     block_duration = service.duration
-    # TODO: Añadir la lógica del travel_buffer aquí si el servicio es a domicilio
+    # TODO: La lógica del travel_buffer ahora se obtendrá del 'business' al que pertenece el staff_member.
 
-    # El "paso" para sondear cuando hay conflictos.
     probe_step = timedelta(minutes=15)
 
     for block in availability_blocks:
@@ -39,11 +44,9 @@ def generate_available_slots(client, service, target_date):
                     break
             
             if is_available:
-                # Si encontramos un slot, lo añadimos y saltamos por la duración del servicio.
                 available_slots.append(current_time.strftime('%H:%M'))
                 current_time += block_duration
             else:
-                # Si hay conflicto, solo avanzamos un pequeño paso para seguir buscando.
                 current_time += probe_step
             
     return available_slots

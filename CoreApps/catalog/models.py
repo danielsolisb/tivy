@@ -1,36 +1,48 @@
-#CoreApps/catalog/models.py
+# CoreApps/catalog/models.py
+
 from django.db import models
-from CoreApps.users.models import Client # Importamos el modelo Client
+from CoreApps.users.models import Business, StaffMember
 
 # -----------------------------------------------------------------------------
 # Modelo para negocios basados en citas
+# CAMBIO: Se relaciona con 'Business' y 'StaffMember'.
 # -----------------------------------------------------------------------------
 class Service(models.Model):
     class LocationType(models.TextChoices):
         LOCAL_ONLY = 'LOCAL', 'En el local'
         DELIVERY_ONLY = 'DOMICILIO', 'A domicilio'
         BOTH = 'AMBOS', 'Ambos (a elegir por el cliente)'
-    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='services')
+    
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='services')
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True)
     duration = models.DurationField(help_text="Duración del servicio. Formato: HH:MM:SS.")
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    is_active = models.BooleanField(default=True)
     location_type = models.CharField(
         max_length=10,
         choices=LocationType.choices,
         default=LocationType.LOCAL_ONLY,
         help_text="Define dónde se puede realizar este servicio específico."
     )
+    # --- NUEVO CAMPO ---
+    # Conecta qué miembros del personal pueden realizar este servicio.
+    assignees = models.ManyToManyField(
+        StaffMember,
+        related_name='services_offered',
+        blank=True,
+        help_text="Personal asignado para realizar este servicio."
+    )
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.name} - {self.client.display_name}"
+        return f"{self.name} - {self.business.display_name}"
 
 # -----------------------------------------------------------------------------
 # Modelo para negocios tipo tienda
+# CAMBIO: Se relaciona con 'Business'.
 # -----------------------------------------------------------------------------
 class Product(models.Model):
-    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='products')
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='products')
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -38,4 +50,4 @@ class Product(models.Model):
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.name} - {self.client.display_name}"
+        return f"{self.name} - {self.business.display_name}"
