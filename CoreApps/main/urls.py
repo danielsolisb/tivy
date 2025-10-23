@@ -12,6 +12,7 @@ from .views import (
     ConfirmBookingView,    # <-- Descomentamos esta importación
     BookingConfirmedView,
     RescheduleAppointmentView,
+    HomePageView,
     check_customer_view
 )
 
@@ -19,7 +20,8 @@ urlpatterns = [
     path('login/', login_view, name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     path('dashboard/', dashboard_view, name='dashboard'),
-
+    path('', HomePageView.as_view(), name='home'),
+    
     path('p/<slug:slug>/', BusinessPublicProfileView.as_view(), name='business_profile'),
     path('p/<slug:slug>/select-time/', SelectStaffAndTimeView.as_view(), name='select_staff_and_time'),
     path('p/<slug:slug>/confirm/', ConfirmBookingView.as_view(), name='confirm_booking'),

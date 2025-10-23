@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 from decouple import config
-
+import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -33,8 +33,11 @@ SECRET_KEY = 'django-insecure-19r)=5n!v-)gd0=)e(jjzjp929x92x*uu9x+la62v6rm@#d9za
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['+','8c0afe8fe13b.ngrok-free.app', 'localhost']
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://8c0afe8fe13b.ngrok-free.app' # <-- Asegurate de incluir https://
+]
 
 # Application definition
 
@@ -148,3 +151,13 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# URL pública que se usará para acceder a los archivos multimedia en el navegador.
+# Debe terminar en barra '/'.
+MEDIA_URL = '/media/'
+
+# Ruta absoluta en tu disco duro donde se guardarán los archivos subidos.
+# BASE_DIR apunta a la raíz de tu proyecto.
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# --- AGREGÁ ESTA LÍNEA ---
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]

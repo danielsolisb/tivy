@@ -22,6 +22,8 @@ from CoreApps.catalog.models import Service
 from CoreApps.scheduling.models import Appointment
 from .utils import generate_available_slots
 
+class HomePageView(TemplateView):
+    template_name = "main/home.html" # Nombre de nuestra nueva plantilla
 
 def login_view(request):
     if request.method == 'POST':

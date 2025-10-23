@@ -47,12 +47,16 @@ class Business(models.Model):
         default=timedelta(minutes=30),
         help_text="Tiempo extra que se bloqueará para traslados en servicios a domicilio."
     )
-    # --- NUEVOS CAMPOS DE COLOR ---
+
     primary_color = models.CharField(max_length=7, default='#3498DB', help_text="Color principal del tema (formato hex, ej: #FF0000)")
     secondary_color = models.CharField(max_length=7, default='#FFFFFF', help_text="Color secundario del tema (formato hex, ej: #00FF00)")
-    # --- FIN NUEVOS CAMPOS ---
+
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # La relación OneToOneField en Subscription ya crea este enlace inverso.
+    # No es estrictamente necesario añadirlo aquí, pero lo mencionamos conceptualmente.
+    # subscription = models.OneToOneField('Subscription', on_delete=models.SET_NULL, null=True, blank=True, related_name='business_reverse')
 
     def __str__(self):
         return self.display_name
@@ -94,3 +98,39 @@ class Customer(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} (Cliente de: {self.business.display_name})"
+
+# planes y suscripciones
+class Plan(models.Model):
+    name = models.CharField(max_length=50, unique=True, help_text="Nombre del plan (Ej: Básico, Profesional)")
+    price_monthly = models.DecimalField(max_digits=6, decimal_places=2, help_text="Precio mensual")
+    max_staff = models.IntegerField(default=1, help_text="Número máximo de miembros de personal permitidos (-1 para ilimitado)")
+    # --- Añade aquí más campos booleanos para características ---
+    allow_payments = models.BooleanField(default=False, help_text="Permite aceptar pagos online")
+    allow_whatsapp_reminders = models.BooleanField(default=False)
+    allow_custom_branding = models.BooleanField(default=False)
+    # ... etc ...
+    is_active = models.BooleanField(default=True, help_text="Indica si este plan se puede asignar a nuevos clientes")
+
+    def __str__(self):
+        return self.name
+
+# --- Subscription ---
+class Subscription(models.Model):
+    class SubscriptionStatus(models.TextChoices):
+        TRIAL = 'TRIAL', 'En Prueba'
+        ACTIVE = 'ACTIVE', 'Activo'
+        PAST_DUE = 'PAST_DUE', 'Pago Vencido'
+        INACTIVE = 'INACTIVE', 'Inactivo'
+        CANCELED = 'CANCELED', 'Cancelado'
+        DEMO = 'DEMO', 'Demostración'
+
+    business = models.OneToOneField(Business, on_delete=models.CASCADE, related_name='subscription')
+    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name='subscriptions') # PROTECT evita borrar un plan si hay suscripciones activas
+    status = models.CharField(max_length=10, choices=SubscriptionStatus.choices, default=SubscriptionStatus.TRIAL)
+    trial_end_date = models.DateField(null=True, blank=True, help_text="Fecha en que termina el periodo de prueba")
+    current_period_end = models.DateField(null=True, blank=True, help_text="Fecha en que termina el periodo pagado actual")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Suscripción de {self.business.display_name} ({self.plan.name}) - {self.get_status_display()}"
