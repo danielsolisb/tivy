@@ -57,7 +57,6 @@ INSTALLED_APPS = [
     # DRF
     'rest_framework',
     'widget_tweaks',
-    'tagify',
 ]
 
 MIDDLEWARE = [

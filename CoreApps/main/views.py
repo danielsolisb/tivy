@@ -251,50 +251,48 @@ class UserProfileView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
         
 class BusinessConfigView(LoginRequiredMixin, UpdateView):
-    """
-    Permite al dueño del negocio editar la configuración.
-    """
     model = Business
     form_class = BusinessConfigForm
     template_name = 'dashboard/business_config_form.html'
-    success_url = reverse_lazy('business_config') # Redirige a la misma página
+    success_url = reverse_lazy('business_config')
 
     def get_object(self, queryset=None):
-        # Asegura que el usuario solo edite SU negocio
         try:
-            # Asume que la relación del User al Business es 'business_profile'
             return self.request.user.business_profile
         except Business.DoesNotExist:
             raise Http404("No se encontró un negocio asociado a tu cuenta.")
 
     def get_initial(self):
-        """ Carga los tags iniciales desde el ManyToManyField. """
+        """ Carga las zonas actuales en el campo de texto, separadas por comas. """
         initial = super().get_initial()
         business = self.get_object()
-        # Convertimos las zonas M2M a una lista de strings para Tagify
-        initial['service_zones_tags'] = [zone.name for zone in business.service_zones.all()]
+        # Convertimos las zonas M2M a una cadena separada por comas para el input
+        initial['service_zones_text'] = ", ".join([zone.name for zone in business.service_zones.all()])
         return initial
 
     def form_valid(self, form):
-        # Procesamos los tags antes de guardar el formulario principal
         business = form.instance # El objeto Business antes de guardar
-        tag_names = form.cleaned_data.get('service_zones_tags', []) # Lista de strings de los tags
 
-        # Sincronizar ManyToManyField con los tags
+        # --- Lógica modificada para procesar el CharField ---
+        zones_text = form.cleaned_data.get('service_zones_text', '')
+        # Dividimos por comas y limpiamos espacios
+        tag_names = [name.strip() for name in zones_text.split(',') if name.strip()] 
+
         current_zones = []
         for name in tag_names:
-            zone, created = ServiceZone.objects.get_or_create(name=name.strip())
+            zone, created = ServiceZone.objects.get_or_create(name=name)
             current_zones.append(zone)
         
         # Guardamos el formulario principal SIN el M2M todavía
+        # El campo 'service_zones_text' no es parte del modelo, así que no interfiere
         response = super().form_valid(form) 
 
         # AHORA asignamos las zonas al M2M después de que el Business se haya guardado
         business.service_zones.set(current_zones) 
 
         messages.success(self.request, "La configuración de tu negocio ha sido actualizada.")
-        return response # UpdateView se encarga de la redirección
-
+        return response
+        
 #Primera pantalla donde se muestran los servicios y logo de la empresa.
 class BusinessPublicProfileView(DetailView):
     model = Business

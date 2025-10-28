@@ -22,18 +22,20 @@ class SubscriptionInline(admin.StackedInline):
 
 @admin.register(Business)
 class BusinessAdmin(admin.ModelAdmin):
-    list_display = ('display_name', 'user', 'get_plan_name', 'get_subscription_status', 'is_active')
-    list_filter = ('business_type', 'is_active', 'service_delivery_type', 'subscription__plan', 'subscription__status')
-    search_fields = ('display_name', 'user__email', 'slug')
+    # Añadimos city y country a la vista de lista y filtros
+    list_display = ('display_name', 'user', 'city', 'country', 'get_plan_name', 'get_subscription_status', 'is_active')
+    list_filter = ('city', 'country', 'business_type', 'is_active', 'service_delivery_type', 'subscription__plan', 'subscription__status')
+    search_fields = ('display_name', 'user__email', 'slug', 'city') # Añadido city a la búsqueda
     readonly_fields = ('created_at', 'slug')
     fieldsets = (
         ('Información Principal', {'fields': ('user', 'display_name', 'slug', 'photo', 'bio')}),
-        ('Configuración del Negocio', {'fields': ('location_name', 'address', 'is_active', 'business_type')}),
+        # Añadimos city y country a la configuración del negocio
+        ('Configuración del Negocio', {'fields': ('location_name', 'address', 'city', 'country', 'is_active', 'business_type')}),
         ('Configuración de Servicios y Domicilio', {'fields': ('service_delivery_type', 'travel_buffer', 'service_zones')}),
         ('Personalización Visual', {'fields': ('primary_color', 'secondary_color'), 'classes': ('collapse',)}),
     )
     inlines = [SubscriptionInline]
-    filter_horizontal = ('service_zones',) # Widget M2M
+    filter_horizontal = ('service_zones',)
 
     def get_readonly_fields(self, request, obj=None):
         if obj:

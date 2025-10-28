@@ -64,11 +64,15 @@ class Business(models.Model):
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='business_profile', help_text="El dueño o administrador del negocio.")
     display_name = models.CharField(max_length=150, help_text="Nombre del negocio (Ej: Peluquería Glamour).")
-    slug = models.SlugField(unique=True, max_length=100, help_text="Identificador único para la URL del negocio.")
+    slug = models.SlugField(unique=True, max_length=100, help_text="Identificador único para la URL (generado automáticamente).", blank=True)
     photo = models.ImageField(upload_to='business/photos/', null=True, blank=True)
     bio = models.TextField(blank=True, help_text="Una breve descripción del negocio.")
     location_name = models.CharField(max_length=200, blank=True, help_text="Nombre del lugar físico (Ej: Centro Comercial El Sol).")
-    address = models.CharField(max_length=255, blank=True)
+    address = models.CharField(max_length=255, blank=True, help_text="Dirección detallada (Calle, número, etc.).")
+    # --- NUEVOS CAMPOS DE UBICACIÓN ---
+    city = models.CharField(max_length=100, blank=True, help_text="Ciudad donde opera el negocio.")
+    country = models.CharField(max_length=100, blank=True, default='Ecuador', help_text="País donde opera el negocio.") # Default a Ecuador
+    # --- FIN NUEVOS CAMPOS ---
     business_type = models.CharField(max_length=10, choices=BusinessType.choices, default=BusinessType.APPOINTMENTS)
     service_delivery_type = models.CharField(
         max_length=10,
@@ -80,27 +84,20 @@ class Business(models.Model):
         default=timedelta(minutes=30),
         help_text="Tiempo extra que se bloqueará para traslados en servicios a domicilio."
     )
-
     primary_color = models.CharField(max_length=7, default='#3498DB', help_text="Color principal del tema (formato hex, ej: #FF0000)")
     secondary_color = models.CharField(max_length=7, default='#FFFFFF', help_text="Color secundario del tema (formato hex, ej: #00FF00)")
-
     service_zones = models.ManyToManyField(
         ServiceZone,
         blank=True,
         related_name='businesses',
         help_text="Zonas geográficas cubiertas para servicios a domicilio (basado en nombres/códigos)."
     )
-
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # La relación OneToOneField en Subscription ya crea este enlace inverso.
-    # No es estrictamente necesario añadirlo aquí, pero lo mencionamos conceptualmente.
-    # subscription = models.OneToOneField('Subscription', on_delete=models.SET_NULL, null=True, blank=True, related_name='business_reverse')
-
     def __str__(self):
         return self.display_name
-    
+
     def save(self, *args, **kwargs):
         if not self.slug:
             base_slug = slugify(self.display_name) if self.display_name else 'negocio'
@@ -111,6 +108,7 @@ class Business(models.Model):
                 counter += 1
             self.slug = slug
         super().save(*args, **kwargs)
+
 # -----------------------------------------------------------------------------
 # --- NUEVO MODELO: El Personal o Recurso Reservable ---
 # Representa a cada persona (o silla, o cabina) que puede ser agendada.
