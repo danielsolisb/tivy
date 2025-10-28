@@ -56,6 +56,8 @@ INSTALLED_APPS = [
     'CoreApps.main',
     # DRF
     'rest_framework',
+    'widget_tweaks',
+    'tagify',
 ]
 
 MIDDLEWARE = [

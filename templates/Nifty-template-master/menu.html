@@ -1,0 +1,136 @@
+{% load static %}
+<nav id="mainnav-container">
+    <div id="mainnav">
+
+        <div id="mainnav-menu-wrap">
+            <div class="nano">
+                <div class="nano-content">
+
+                    <div id="mainnav-profile" class="mainnav-profile">
+                        <div class="profile-wrap text-center">
+                            <div class="pad-btm">
+                                {% if user.profile_image %}
+                                    <img class="img-circle img-md" src="{{ user.profile_image.url }}" alt="Foto de perfil">
+                                {% else %}
+                                    {# Mantenemos la imagen por defecto si no hay foto subida #}
+                                    <img class="img-circle img-md" src="{% static 'images/user.jpg' %}" alt="Foto de perfil por defecto">
+                                {% endif %}
+                            </div>
+                            <a href="#profile-nav" class="box-block" data-toggle="collapse" aria-expanded="false">
+                                <span class="pull-right dropdown-toggle">
+                                    <i class="dropdown-caret"></i>
+                                </span>
+                                {# Mostramos el nombre del usuario logueado #}
+                                <p class="mnp-name">{{ user.get_full_name|default:user.username }}</p>
+                                <span class="mnp-desc">{{ user.email }}</span>
+                            </a>
+                        </div>
+                        <div id="profile-nav" class="collapse list-group bg-trans">
+                            {# TODO: Crear URL y vista para perfil de usuario #}
+                            <a href="{% url 'user_profile' %}" class="list-group-item">
+                                <i class="demo-pli-male icon-lg icon-fw"></i> Ver Perfil
+                            </a>
+                            <a href="{% url 'password_change' %}" class="list-group-item">
+                                <i class="demo-pli-gear icon-lg icon-fw"></i> Cambiar Contraseña {# Cambiamos el texto #}
+                            </a>
+                            <a href="{% url 'logout' %}" class="list-group-item">
+                                <i class="demo-pli-unlock icon-lg icon-fw"></i> Cerrar Sesión
+                            </a>
+                        </div>
+                    </div>
+
+                    {# --- MENÚ PRINCIPAL DE TIVY --- #}
+                    <ul id="mainnav-menu" class="list-group">
+            
+                        <li class="list-header">Navegación</li>
+            
+                        <li class="{% if request.resolver_match.url_name == 'dashboard' %}active-link{% endif %}">
+                            <a href="{% url 'dashboard' %}">
+                                <i class="demo-pli-home"></i>
+                                <span class="menu-title">Inicio Dashboard</span>
+                            </a>
+                        </li>
+                        
+                        <li class="list-divider"></li>
+
+                        <li class="list-header">Gestión del Negocio</li>
+
+                        {# Enlaces a las secciones principales (usamos # por ahora) #}
+                        {# TODO: Reemplazar # con {% url '...' %} cuando existan las vistas #}
+                        <li>
+                            <a href="{% url 'business_config' %}"> 
+                                <i class="demo-pli-gear"></i>
+                                <span class="menu-title">Configuración Negocio</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">
+                                <i class="demo-pli-add-user-star"></i>
+                                <span class="menu-title">Gestionar Personal</span>
+                                {# Aquí podríamos mostrar un badge con el conteo/límite #}
+                                {# {% if plan %} <span class="badge badge-info pull-right">{{ business.staff_members.count }}/{{ plan.max_staff|default:"∞" }}</span> {% endif %} #}
+                            </a>
+                        </li>
+                         <li>
+                            <a href="#">
+                                <i class="demo-pli-folder-with-document"></i>
+                                <span class="menu-title">Gestionar Servicios</span>
+                            </a>
+                        </li>
+                         <li>
+                            <a href="#"> {# Este será el enlace a la página de disponibilidad #}
+                                <i class="demo-pli-calendar-4"></i>
+                                <span class="menu-title">Gestionar Disponibilidad</span>
+                            </a>
+                        </li>
+                         <li>
+                            <a href="#" class="disabled"> {# Deshabilitado hasta implementarlo #}
+                                <i class="demo-pli-information"></i>
+                                <span class="menu-title">Ver Citas (Próximamente)</span>
+                            </a>
+                        </li>
+
+                        <li class="list-divider"></li>
+
+                        <li class="list-header">Ajustes y Cuenta</li>
+
+                        {# Enlace Condicional a Pagos #}
+                        {% if plan and plan.allow_payments %}
+                            <li>
+                                <a href="#">
+                                    <i class="demo-pli-credit-card-2"></i>
+                                    <span class="menu-title">Configurar Pagos</span>
+                                </a>
+                            </li>
+                        {% else %}
+                             <li class="disabled"> {# Mostrar deshabilitado si el plan no lo permite #}
+                                <a href="#" title="Requiere Plan Profesional o superior">
+                                     <i class="demo-pli-credit-card-2"></i>
+                                    <span class="menu-title">Configurar Pagos</span>
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        <li>
+                             <a href="#" class="disabled"> {# Deshabilitado hasta implementarlo #}
+                                <i class="demo-pli-medal-2"></i>
+                                <span class="menu-title">Gestionar Suscripción</span>
+                            </a>
+                        </li>
+            
+                        <li class="list-divider"></li>
+
+                        {# Considera quitar este si ya está en el perfil #}
+                        <li>
+                            <a href="{% url 'logout' %}">
+                                <i class="demo-pli-unlock"></i>
+                                <span class="menu-title">Cerrar Sesión</span>
+                            </a>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </div>
+        </div>
+</nav>

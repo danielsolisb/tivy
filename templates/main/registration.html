@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}Regístrate en Tivy - Plan {{ plan.name }}{% endblock %}
+
+{% block content %}
+<style>
+    /* Reutilizamos algunos estilos */
+     :root {
+        --tivy-blue: #3B82F6;
+        --tivy-light-gray: #F3F4F6;
+    }
+     body { background-color: var(--tivy-light-gray); }
+    .registration-form {
+        max-width: 500px;
+        margin: 3rem auto;
+        background-color: white;
+        padding: 2.5rem;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+     .form-control { border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; }
+     .form-label { font-weight: 500; }
+     .btn-primary-theme { background-color: var(--tivy-blue); border-color: var(--tivy-blue); color: white; padding: 0.75rem 1.25rem; font-size: 1.1rem; width: 100%;}
+     .btn-primary-theme:hover { opacity: 0.9; background-color: var(--tivy-blue); border-color: var(--tivy-blue); color: white; }
+</style>
+
+<div class="registration-form">
+    <h2 class="text-center mb-1">Crea tu cuenta</h2>
+    {% if plan %}
+    <p class="text-center text-muted mb-4">Iniciando prueba de 30 días - Plan <strong>{{ plan.name }}</strong></p>
+    {% else %}
+    <p class="text-center text-danger mb-4">Error: Plan no seleccionado.</p>
+    {% endif %}
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-danger{% endif %}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    {# Solo mostrar el formulario si hay un plan válido #}
+    {% if plan and not error %}
+    <form method="post">
+        {% csrf_token %}
+        {# El plan_id se pasa por la URL, no es necesario en el form #}
+
+        <div class="mb-3">
+            <label for="id_first_name" class="form-label">Tu Nombre</label>
+            <input type="text" name="first_name" class="form-control" id="id_first_name" required>
+        </div>
+        <div class="mb-3">
+            <label for="id_last_name" class="form-label">Tu Apellido</label>
+            <input type="text" name="last_name" class="form-control" id="id_last_name" required>
+        </div>
+         <div class="mb-3">
+            <label for="id_email" class="form-label">Tu Correo Electrónico</label>
+            <input type="email" name="email" class="form-control" id="id_email" required>
+        </div>
+         <div class="mb-3">
+            <label for="id_password" class="form-label">Crea una Contraseña</label>
+            <input type="password" name="password" class="form-control" id="id_password" required>
+            {# TODO: Añadir campo de confirmación de contraseña y validación #}
+        </div>
+        <hr class="my-4">
+        <div class="mb-3">
+            <label for="id_business_name" class="form-label">Nombre de tu Negocio</label>
+            <input type="text" name="business_name" class="form-control" id="id_business_name" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary-theme mt-3">Crear Cuenta e Iniciar Prueba</button>
+    </form>
+    <p class="text-center text-muted mt-3 small">Al registrarte, aceptas nuestros Términos de Servicio y Política de Privacidad.</p>
+    {% else %}
+     <div class="text-center">
+        <a href="{% url 'select_plan' %}" class="btn btn-secondary">Volver a seleccionar plan</a>
+     </div>
+    {% endif %}
+</div>
+{% endblock %}

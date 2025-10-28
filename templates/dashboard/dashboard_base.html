@@ -1,0 +1,78 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    {# --- Bloque para el título específico de cada página --- #}
+    <title>{% block title %}Dashboard - Tivy{% endblock %}</title>
+
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,300,600,700' rel='stylesheet' type='text/css'>
+    
+    {# --- Rutas CSS adaptadas con {% static %} --- #}
+    <link rel="stylesheet" href="{% static 'css-auralis/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css-auralis/nifty.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css-auralis/demo/nifty-demo-icons.min.css' %}">
+    <link rel="stylesheet" href="{% static 'plugins/pace/pace.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css-auralis/demo/nifty-demo.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css-auralis/themes/type-c/theme-navy.min.css' %}">
+    {# --- Bloque para CSS adicional específico de cada página --- #}
+    {% block page_head %}{% endblock %}
+
+</head>
+
+<body>
+    {# --- Contenedor Principal de Nifty --- #}
+    <div id="container" class="effect aside-float aside-bright mainnav-lg"> {# Ajusta mainnav-lg/sm según preferencia #}
+
+        {# --- Incluir la Barra de Navegación Superior --- #}
+        {% include 'Nifty-template-master/navbar.html' %}
+
+        <div class="boxed">
+
+            <div id="content-container">
+                <div id="page-head">
+                    
+                    <div id="page-title">
+                        <h1 class="page-header text-overflow">{% block page_title %}Dashboard{% endblock %}</h1>
+                    </div>
+                    <ol class="breadcrumb">
+                        <li><a href="{% url 'dashboard' %}"><i class="demo-pli-home"></i></a></li>
+                        {% block breadcrumb %}{% endblock %}
+                    </ol>
+                    </div>
+                
+                {# --- Bloque Principal de Contenido --- #}
+                <div id="page-content">
+                    {% block content %}
+                    {# El contenido específico de cada página del dashboard irá aquí #}
+                    {% endblock %}
+                </div>
+                </div>
+
+            {# --- Incluir el Menú Lateral (Sidebar) --- #}
+            {% include 'Nifty-template-master/menu.html' %}
+
+        </div> {# Fin div.boxed #}
+
+        {# --- Incluir el Pie de Página --- #}
+        {% include 'Nifty-template-master/footer.html' %}
+
+        <button class="scroll-top btn">
+            <i class="pci-chevron chevron-up"></i>
+        </button>
+        </div>
+    {# --- Rutas JS adaptadas con {% static %} --- #}
+    <script src="{% static 'js/jquery.min.js' %}"></script>
+    <script src="{% static 'js/bootstrap.min.js' %}"></script>
+    <script src="{% static 'js/nifty.min.js' %}"></script>
+    <script src="{% static 'plugins/pace/pace.min.js' %}"></script>
+    {# <script src="{% static 'js/demo/nifty-demo.min.js' %}"></script> #}
+    {# --- Bloque para JS adicional específico de cada página --- #}
+    {% block page_script %}{% endblock %}
+
+</body>
+</html>

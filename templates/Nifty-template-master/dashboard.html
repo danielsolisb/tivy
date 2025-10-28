@@ -1,0 +1,187 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Dashboard | Auralis</title>
+    <!--STYLESHEET-->
+    <!--=================================================-->
+    <!--Open Sans Font [ OPTIONAL ]-->
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,300,600,700' rel='stylesheet' type='text/css'>
+    <!--Bootstrap Stylesheet [ REQUIRED ]-->
+    <link rel="stylesheet" href="{% static 'css-auralis/bootstrap.min.css' %}">
+    <!--Nifty Stylesheet [ REQUIRED ]-->
+    <link rel="stylesheet" href="{% static 'css-auralis/nifty.min.css' %}" rel="stylesheet">
+    <!--Nifty Premium Icon [ DEMONSTRATION ]-->
+    <link rel="stylesheet" href="{% static 'css-auralis/demo/nifty-demo-icons.min.css' %}">
+    <!--=================================================-->
+    <!--Pace - Page Load Progress Par [OPTIONAL]-->
+    <link rel="stylesheet" href="{% static 'plugins/pace/pace.min.css' %}">
+    <script src="{% static 'plugins/pace/pace.min.js' %}"></script>
+    <!--Demo [ DEMONSTRATION ]-->
+    <link rel="stylesheet" href="{% static 'css-auralis/demo/nifty-demo.min.css' %}">        
+    <!--Custom scheme [ OPTIONAL ]-->
+    <link rel="stylesheet" href="{% static 'css-auralis/themes/type-c/theme-navy.min.css' %}">
+    <!--=================================================
+    REQUIRED
+    You must include this in your project.
+    RECOMMENDED
+    This category must be included but you may modify which plugins or components which should be included in your project.
+    OPTIONAL
+    Optional plugins. You may choose whether to include it in your project or not.
+    DEMONSTRATION
+    This is to be removed, used for demonstration purposes only. This category must not be included in your project.
+    SAMPLE
+    Some script samples which explain how to initialize plugins or components. This category should not be included in your project.
+    
+    Detailed information and more samples can be found in the document.
+
+    =================================================-->    
+<!-- Flatpickr CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+<!-- Flatpickr JS -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+
+{% block page_head %}{% endblock %}
+
+</head>
+
+<!--TIPS-->
+<!--You may remove all ID or Class names which contain "demo-", they are only used for demonstration. -->
+<body>
+    <div id="container" class="effect aside-float aside-bright mainnav-sm {% if title == 'Settings' or title == 'Maps' or title == 'Monitor' or title == 'Monitor Multiescala' or title == 'Editor de Reglas'%}{% else %}page-fixedbar{% endif %}">
+    
+        {% include 'main/navbar.html' %}
+        <div class="boxed">
+
+            <!--CONTENT CONTAINER-->
+            <!--===================================================-->
+            <div id="content-container">
+                <div id="page-head">
+                    
+                    <!--Page Title-->
+                    <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+                    <div id="page-title">
+                        <h1 class="page-header text-overflow">{{ title }}</h1>
+                    </div>
+                    <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+                    <!--End page title-->
+
+
+                    <!--Breadcrumb-->
+                    <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+                    <ol class="breadcrumb">
+					<li><a href="{%url 'dashboard'%}"><i class="demo-pli-home"></i></a></li>
+					<li class="active">{{ subtitle }}</li>
+                    </ol>
+                    <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+                    <!--End breadcrumb-->
+
+                </div>
+
+                                
+                
+
+                            {% block fixedbar %}
+
+                            {% endblock %}
+
+                                
+                           
+
+                
+					
+                    {% block content %}
+
+                    {% endblock %}
+			
+					    
+					
+
+            </div>
+            <!--===================================================-->
+            <!--END CONTENT CONTAINER-->
+
+
+            
+        {% include 'main/aside.html' %}
+
+        {% include 'main/menu.html' %}
+
+             
+
+        </div>
+
+        
+
+       {% include 'main/footer.html' %}
+
+
+        <!-- SCROLL PAGE BUTTON -->
+        <!--===================================================-->
+        <button class="scroll-top btn">
+            <i class="pci-chevron chevron-up"></i>
+        </button>
+        <!--===================================================-->
+    </div>
+    <!--===================================================-->
+    <!-- END OF CONTAINER -->
+
+
+    
+    
+    
+    <!--JAVASCRIPT-->
+    <!--=================================================-->
+
+    <!--jQuery [ REQUIRED ]-->
+    <script src="{% static 'js/jquery.min.js' %}"></script>
+    
+
+
+    <!--BootstrapJS [ RECOMMENDED ]-->
+    <script src="{% static 'js/bootstrap.min.js' %}"></script>
+    
+
+
+    <!--NiftyJS [ RECOMMENDED ]-->
+    <script src="{% static 'js/nifty.min.js' %}"></script>
+    
+
+
+
+
+    <!--=================================================-->
+    
+    <!--Demo script [ DEMONSTRATION ]-->
+    <!--<script src="{% static 'js/demo/nifty-demo.min.js' %}"></script>-->
+
+    
+    <!--Flot Chart [ OPTIONAL ]-->
+    <script src="{% static 'plugins/flot-charts/jquery.flot.min.js' %}"></script>
+    <script src="{% static 'plugins/flot-charts/jquery.flot.categories.min.js' %}"></script>
+    <script src="{% static 'plugins/flot-charts/jquery.flot.orderBars.min.js' %}"></script>
+    <script src="{% static 'plugins/flot-charts/jquery.flot.tooltip.min.js' %}"></script>
+    <script src="{% static 'plugins/flot-charts/jquery.flot.resize.min.js' %}"></script>
+
+
+
+    <!--Specify page [ SAMPLE ]-->
+    <!--<script src="{% static 'js/demo/dashboard-2.js' %}"></script>-->
+    {% block script %}
+    {% endblock %}
+
+    {% block page_script %}{% endblock %}
+
+
+    
+
+</body>
+</html>

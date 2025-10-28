@@ -1,0 +1,75 @@
+{# Hereda de la nueva base del dashboard #}
+{% extends 'dashboard/dashboard_base.html' %}
+{% load static %}
+
+{# Define el título específico de esta página #}
+{% block title %}Inicio Dashboard - Tivy{% endblock %}
+
+{# Define el título que aparece en la cabecera de la página #}
+{% block page_title %}Dashboard{% endblock %}
+
+{# Define el breadcrumb para esta página #}
+{% block breadcrumb %}
+    <li class="active">Inicio</li>
+{% endblock %}
+
+{# Define el contenido principal de esta página #}
+{% block content %}
+
+    {# --- Mensajes (si los hay) --- #}
+    {% if messages %}
+        {% for message in messages %}
+             <div class="alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'warning' %}alert-warning{% else %}alert-danger{% endif %}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    {# --- Información de Suscripción --- #}
+    {% if subscription and plan %}
+        <div class="alert alert-info" role="alert">
+            <strong>Plan:</strong> {{ plan.name }} | 
+            <strong>Estado:</strong> {{ subscription.get_status_display }}
+            {% if subscription.status == 'TRIAL' and subscription.trial_end_date %}
+                | Tu prueba gratuita termina el {{ subscription.trial_end_date|date:"d/m/Y" }}.
+            {% elif subscription.status == 'ACTIVE' and subscription.current_period_end %}
+                | Tu suscripción se renueva el {{ subscription.current_period_end|date:"d/m/Y" }}.
+            {% endif %}
+            {# TODO: Add link to manage subscription #}
+        </div>
+    {% elif is_subscription_valid %} {# Mostrar solo si no hay subscripción pero debería #}
+         <div class="alert alert-danger" role="alert">
+            Error al cargar la información de tu suscripción. Contacta soporte.
+        </div>
+    {% endif %}
+
+    {# --- Contenido Principal (Solo si la suscripción es válida) --- #}
+    {% if is_subscription_valid %}
+        {# Puedes añadir aquí tarjetas o widgets como en el ejemplo de Nifty #}
+        <div class="row">
+            <div class="col-md-12">
+                <div class="panel">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">Bienvenido, {{ request.user.first_name }}</h3>
+                    </div>
+                    <div class="panel-body">
+                        <p>Desde aquí podrás gestionar todos los aspectos de tu negocio en Tivy.</p>
+                        <p>Selecciona una opción del menú de la izquierda para empezar.</p>
+                        {# Aquí podrías añadir accesos directos o estadísticas clave #}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        {# Contenido mostrado cuando la suscripción NO es válida #}
+        <div class="alert alert-warning">
+             <p>Por favor, revisa el estado de tu suscripción para continuar usando Tivy.</p>
+             {# TODO: Add link to manage subscription page #}
+             <a href="#" class="btn btn-warning disabled">Gestionar Suscripción (Próximamente)</a>
+        </div>
+    {% endif %}
+
+{% endblock %}
+
+{# Bloque opcional para scripts específicos de esta página #}
+{% block page_script %}
+    {# <script src="{% static 'js/demo/dashboard_specific_scripts.js' %}"></script> #}
+{% endblock %}

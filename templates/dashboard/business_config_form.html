@@ -1,0 +1,159 @@
+{% extends 'dashboard/dashboard_base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}Configuración del Negocio - Tivy{% endblock %}
+
+{% block page_title %}Configuración del Negocio{% endblock %}
+
+{% block breadcrumb %}
+    <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    <li class="active">Configuración Negocio</li>
+{% endblock %}
+
+{% block page_head %}
+    {# --- CSS para Tagify --- #}
+    <link href="https://unpkg.com/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css" />
+{% endblock %}
+
+
+{% block content %}
+
+    {% if messages %}
+        {% for message in messages %}
+             <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-danger{% endif %} alert-dismissible">
+                <button class="close" data-dismiss="alert"><i class="pci-cross pci-circle"></i></button>
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8 col-lg-offset-2"> {# Centrar y limitar ancho #}
+            <div class="panel">
+                <div class="panel-heading">
+                    <h3 class="panel-title">Edita la Información de tu Negocio</h3>
+                </div>
+                <div class="panel-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        {# Renderizamos campos del formulario #}
+                        {# Puedes organizarlos en fieldsets si prefieres #}
+
+                        <div class="mb-3">
+                             <label for="{{ form.display_name.id_for_label }}" class="form-label">{{ form.display_name.label }}</label>
+                             {{ form.display_name|add_class:"form-control" }}
+                             {% include 'includes/field_errors.html' with field=form.display_name %}
+                        </div>
+
+                        <div class="mb-3">
+                             <label for="{{ form.photo.id_for_label }}" class="form-label">{{ form.photo.label }} (Logo)</label>
+                             {% if business.photo %}
+                             <p><img src="{{ business.photo.url }}" alt="Logo actual" style="max-height: 80px; margin-bottom: 10px;"></p>
+                             {% endif %}
+                             {{ form.photo|add_class:"form-control" }}
+                             {% include 'includes/field_errors.html' with field=form.photo %}
+                        </div>
+
+                        <div class="mb-3">
+                             <label for="{{ form.bio.id_for_label }}" class="form-label">{{ form.bio.label }}</label>
+                             {{ form.bio|add_class:"form-control" }}
+                             {% include 'includes/field_errors.html' with field=form.bio %}
+                        </div>
+                        
+                        <hr>
+                        <h4>Ubicación y Atención</h4>
+
+                        <div class="mb-3">
+                             <label for="{{ form.location_name.id_for_label }}" class="form-label">{{ form.location_name.label }}</label>
+                             {{ form.location_name|add_class:"form-control" }}
+                             {% include 'includes/field_errors.html' with field=form.location_name %}
+                        </div>
+
+                        <div class="mb-3">
+                             <label for="{{ form.address.id_for_label }}" class="form-label">{{ form.address.label }}</label>
+                             {{ form.address|add_class:"form-control" }}
+                             {% include 'includes/field_errors.html' with field=form.address %}
+                        </div>
+
+                        <div class="mb-3">
+                             <label for="{{ form.service_delivery_type.id_for_label }}" class="form-label">{{ form.service_delivery_type.label }}</label>
+                             {{ form.service_delivery_type|add_class:"form-control" }}
+                             {% include 'includes/field_errors.html' with field=form.service_delivery_type %}
+                        </div>
+
+                        {# --- Campos Condicionales para Domicilio --- #}
+                        <div id="domicilio-fields" style="display: {% if business.service_delivery_type == 'LOCAL' %}none{% else %}block{% endif %};">
+                            <div class="mb-3">
+                                <label for="{{ form.travel_buffer.id_for_label }}" class="form-label">{{ form.travel_buffer.label }}</label>
+                                {{ form.travel_buffer|add_class:"form-control" }}
+                                <small class="form-text text-muted">Formato: HH:MM:SS (Ej: 00:30:00 para 30 minutos).</small>
+                                {% include 'includes/field_errors.html' with field=form.travel_buffer %}
+                            </div>
+
+                             <div class="mb-3">
+                                <label for="{{ form.service_zones_tags.id_for_label }}" class="form-label">{{ form.service_zones_tags.label }}</label>
+                                {# El widget ya tiene la clase 'tagify-input' #}
+                                {{ form.service_zones_tags }} 
+                                <small class="form-text text-muted">{{ form.service_zones_tags.help_text }}</small>
+                                {% include 'includes/field_errors.html' with field=form.service_zones_tags %}
+                             </div>
+                        </div>
+                        {# --- Fin Campos Condicionales --- #}
+
+                        <hr>
+                        <h4>Personalización Visual</h4>
+
+                         <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.primary_color.id_for_label }}" class="form-label">{{ form.primary_color.label }}</label>
+                                {{ form.primary_color|add_class:"form-control" }}
+                                {% include 'includes/field_errors.html' with field=form.primary_color %}
+                            </div>
+                             <div class="col-md-6 mb-3">
+                                <label for="{{ form.secondary_color.id_for_label }}" class="form-label">{{ form.secondary_color.label }}</label>
+                                {{ form.secondary_color|add_class:"form-control" }}
+                                {% include 'includes/field_errors.html' with field=form.secondary_color %}
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary mt-3">Guardar Configuración</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+
+{% block page_script %}
+    {# --- JS para Tagify --- #}
+    <script src="https://unpkg.com/@yaireo/tagify"></script>
+    <script src="https://unpkg.com/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
+    <script>
+        // Inicializar Tagify en el input correspondiente
+        var input = document.querySelector('input[name=service_zones_tags]');
+        if (input) {
+            new Tagify(input);
+        }
+
+        // --- JS para campos condicionales ---
+        const deliveryTypeSelect = document.getElementById('{{ form.service_delivery_type.id_for_label }}');
+        const domicilioFieldsDiv = document.getElementById('domicilio-fields');
+
+        function toggleDomicilioFields() {
+            if (deliveryTypeSelect.value === 'LOCAL') {
+                domicilioFieldsDiv.style.display = 'none';
+            } else {
+                domicilioFieldsDiv.style.display = 'block';
+            }
+        }
+
+        // Ejecutar al cargar y al cambiar
+        toggleDomicilioFields(); 
+        deliveryTypeSelect.addEventListener('change', toggleDomicilioFields);
+
+    </script>
+{% endblock %}

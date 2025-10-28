@@ -1,0 +1,50 @@
+{# Hereda de la nueva base del dashboard #}
+{% extends 'dashboard/dashboard_base.html' %}
+{% load static %}
+
+{# Define el título específico de esta página #}
+{% block title %}Acceso Restringido - Tivy{% endblock %}
+
+{# Define el título que aparece en la cabecera de la página #}
+{% block page_title %}Acceso Restringido{% endblock %}
+
+{# Define el breadcrumb para esta página #}
+{% block breadcrumb %}
+    <li class="active">Acceso Restringido</li>
+{% endblock %}
+
+{# Define el contenido principal de esta página #}
+{% block content %}
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-warning">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="panel">
+        <div class="panel-heading">
+             <h3 class="panel-title">Acceso Limitado</h3>
+        </div>
+        <div class="panel-body">
+            <p>El acceso completo a tu dashboard está limitado debido al estado de tu suscripción.</p>
+            
+            {% if subscription %}
+            <p><strong>Estado Actual:</strong> {{ subscription.get_status_display }}</p>
+                {% if subscription.status == 'PAST_DUE' %}
+                <p>Tu pago está vencido. Por favor, actualiza tu método de pago para reactivar tu cuenta.</p>
+                {% elif subscription.status == 'INACTIVE' %}
+                <p>Tu cuenta está inactiva por falta de pago.</p>
+                {% elif subscription.status == 'CANCELED' %}
+                <p>Tu suscripción ha sido cancelada.</p>
+                {% endif %}
+            {% else %}
+             <p>No se encontró información de suscripción para tu cuenta.</p>
+            {% endif %}
+
+            {# TODO: Add a clear Call to Action button to manage subscription #}
+            <a href="#" class="btn btn-primary mt-3 disabled">Gestionar Suscripción (Próximamente)</a>
+        </div>
+    </div>
+
+{% endblock %}

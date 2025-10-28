@@ -3,17 +3,50 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from datetime import timedelta
+from django.utils.text import slugify
 
 # -----------------------------------------------------------------------------
 # Modelo #1: El Usuario Base para Autenticación (SIN CAMBIOS)
 # -----------------------------------------------------------------------------
 class User(AbstractUser):
     email = models.EmailField(unique=True, help_text="El email será el nombre de usuario único.")
+    profile_image = models.ImageField(
+        upload_to='users/profile_pics/', 
+        null=True, 
+        blank=True, 
+        help_text="Foto de perfil del usuario."
+    )
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
 
     def __str__(self):
         return self.email
+
+# planes y suscripciones
+class Plan(models.Model):
+    name = models.CharField(max_length=50, unique=True, help_text="Nombre del plan (Ej: Básico, Profesional)")
+    price_monthly = models.DecimalField(max_digits=6, decimal_places=2, help_text="Precio mensual")
+    max_staff = models.IntegerField(default=1, help_text="Número máximo de miembros de personal permitidos (-1 para ilimitado)")
+    # --- Añade aquí más campos booleanos para características ---
+    allow_payments = models.BooleanField(default=False, help_text="Permite aceptar pagos online")
+    allow_whatsapp_reminders = models.BooleanField(default=False)
+    allow_custom_branding = models.BooleanField(default=False)
+    # ... etc ...
+    is_active = models.BooleanField(default=True, help_text="Indica si este plan se puede asignar a nuevos clientes")
+
+    def __str__(self):
+        return self.name
+
+#Zonas de servicios para los negocios que son a domicilio
+class ServiceZone(models.Model):
+    """
+    Representa una zona geográfica (barrio, código postal, ciudad)
+    donde un negocio puede ofrecer servicios a domicilio.
+    """
+    name = models.CharField(max_length=150, unique=True, help_text="Nombre único de la zona (Ej: Guayaquil Centro, 090101, Samborondón)")
+
+    def __str__(self):
+        return self.name
 
 # -----------------------------------------------------------------------------
 # --- NUEVO MODELO: El Negocio ---
@@ -51,6 +84,13 @@ class Business(models.Model):
     primary_color = models.CharField(max_length=7, default='#3498DB', help_text="Color principal del tema (formato hex, ej: #FF0000)")
     secondary_color = models.CharField(max_length=7, default='#FFFFFF', help_text="Color secundario del tema (formato hex, ej: #00FF00)")
 
+    service_zones = models.ManyToManyField(
+        ServiceZone,
+        blank=True,
+        related_name='businesses',
+        help_text="Zonas geográficas cubiertas para servicios a domicilio (basado en nombres/códigos)."
+    )
+
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -60,6 +100,17 @@ class Business(models.Model):
 
     def __str__(self):
         return self.display_name
+    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.display_name) if self.display_name else 'negocio'
+            slug = base_slug
+            counter = 1
+            while Business.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
 # -----------------------------------------------------------------------------
 # --- NUEVO MODELO: El Personal o Recurso Reservable ---
 # Representa a cada persona (o silla, o cabina) que puede ser agendada.
@@ -99,21 +150,6 @@ class Customer(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name} (Cliente de: {self.business.display_name})"
 
-# planes y suscripciones
-class Plan(models.Model):
-    name = models.CharField(max_length=50, unique=True, help_text="Nombre del plan (Ej: Básico, Profesional)")
-    price_monthly = models.DecimalField(max_digits=6, decimal_places=2, help_text="Precio mensual")
-    max_staff = models.IntegerField(default=1, help_text="Número máximo de miembros de personal permitidos (-1 para ilimitado)")
-    # --- Añade aquí más campos booleanos para características ---
-    allow_payments = models.BooleanField(default=False, help_text="Permite aceptar pagos online")
-    allow_whatsapp_reminders = models.BooleanField(default=False)
-    allow_custom_branding = models.BooleanField(default=False)
-    # ... etc ...
-    is_active = models.BooleanField(default=True, help_text="Indica si este plan se puede asignar a nuevos clientes")
-
-    def __str__(self):
-        return self.name
-
 # --- Subscription ---
 class Subscription(models.Model):
     class SubscriptionStatus(models.TextChoices):
@@ -134,3 +170,5 @@ class Subscription(models.Model):
 
     def __str__(self):
         return f"Suscripción de {self.business.display_name} ({self.plan.name}) - {self.get_status_display()}"
+
+
