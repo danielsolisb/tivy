@@ -1,7 +1,8 @@
 # CoreApps/main/forms.py
 
 from django import forms
-from CoreApps.users.models import User, Business, ServiceZone
+from CoreApps.users.models import User, Business, ServiceZone, StaffMember
+from CoreApps.catalog.models import Service
 
 class UserProfileForm(forms.ModelForm):
     class Meta:
@@ -45,3 +46,110 @@ class BusinessConfigForm(forms.ModelForm):
             'primary_color': forms.TextInput(attrs={'class': 'form-control', 'type': 'color'}),
             'secondary_color': forms.TextInput(attrs={'class': 'form-control', 'type': 'color'}),
         }
+
+class StaffMemberForm(forms.Form):
+    """
+    Formulario para añadir un nuevo miembro de personal o recurso.
+    """
+    name = forms.CharField(
+        label="Nombre del Recurso o Empleado",
+        max_length=150,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Ana Gómez o Silla 1'})
+    )
+    give_access = forms.BooleanField(
+        label="Dar acceso al dashboard a este empleado",
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    email = forms.EmailField(
+        label="Correo Electrónico del Empleado",
+        required=False, # Solo requerido si give_access es True (validado en la vista)
+        widget=forms.EmailInput(attrs={'class': 'form-control'})
+    )
+    email = forms.EmailField(
+        label="Correo Electrónico del Empleado",
+        required=False,
+        widget=forms.EmailInput(attrs={'class': 'form-control'})
+    )
+    first_name = forms.CharField(
+        label="Nombre del Empleado",
+        required=False,
+        max_length=150,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    last_name = forms.CharField(
+        label="Apellido del Empleado",
+        required=False,
+        max_length=150,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    phone_number = forms.CharField(
+        label="Teléfono del Empleado",
+        required=False,
+        max_length=20,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09xxxxxxxx'})
+    )
+    # Podríamos añadir first_name y last_name opcionales si give_access es True
+
+
+class ServiceForm(forms.ModelForm):
+    """
+    Formulario para crear y editar Servicios.
+    """
+    # Sobrescribimos el campo assignees para filtrar por el negocio actual
+    assignees = forms.ModelMultipleChoiceField(
+        queryset=StaffMember.objects.none(), # Queryset vacío inicialmente
+        widget=forms.SelectMultiple(attrs={'class': 'form-control'}), # O forms.CheckboxSelectMultiple
+        required=False,
+        label="Personal Asignado",
+        help_text="Selecciona el personal que puede realizar este servicio."
+    )
+    
+    class Meta:
+        model = Service
+        # Lista completa de campos a incluir en el formulario
+        fields = [
+            'name', 'description', 'duration', 'price', 
+            'location_type', 'assignees', 'photo', 'is_active'
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'duration': forms.TimeInput(attrs={'class': 'form-control', 'type':'text', 'placeholder': 'HH:MM:SS'}),
+            'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'location_type': forms.Select(attrs={'class': 'form-control'}),
+            'photo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        help_texts = {
+            'duration': 'Formato HH:MM:SS (Ej: 01:30:00 para 1h 30m).',
+        }
+
+    def __init__(self, *args, **kwargs):
+        # Obtenemos el 'business' pasado desde la vista
+        business = kwargs.pop('business', None) 
+        super().__init__(*args, **kwargs)
+
+        if business:
+            # 1. Filtrar queryset de 'assignees'
+            self.fields['assignees'].queryset = StaffMember.objects.filter(business=business, is_active=True)
+            
+            # 2. Limitar opciones de 'location_type'
+            delivery_type = business.service_delivery_type
+            if delivery_type == Business.ServiceDeliveryType.LOCAL_ONLY:
+                # Si el negocio solo atiende en local, quitamos las opciones de domicilio
+                self.fields['location_type'].choices = [
+                    (Service.LocationType.LOCAL_ONLY, Service.LocationType.LOCAL_ONLY.label)
+                ]
+                # Asegurarnos que el valor por defecto sea LOCAL
+                self.fields['location_type'].initial = Service.LocationType.LOCAL_ONLY 
+            elif delivery_type == Business.ServiceDeliveryType.DELIVERY_ONLY:
+                 # Si el negocio solo atiende a domicilio, quitamos las opciones de local
+                 self.fields['location_type'].choices = [
+                     (Service.LocationType.DELIVERY_ONLY, Service.LocationType.DELIVERY_ONLY.label),
+                     (Service.LocationType.BOTH, Service.LocationType.BOTH.label) # Puede ofrecer AMBOS aunque el negocio sea solo Domicilio? O quitamos BOTH? Mejor quitar BOTH.
+                     #(Service.LocationType.BOTH, Service.LocationType.BOTH.label) 
+                 ]
+                 # Valor por defecto DOMICILIO
+                 self.fields['location_type'].initial = Service.LocationType.DELIVERY_ONLY
+            # Si es BOTH, dejamos todas las opciones por defecto

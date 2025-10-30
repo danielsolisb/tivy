@@ -3,7 +3,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.http import JsonResponse, Http404
-from django.views.generic import DetailView, TemplateView, FormView, UpdateView
+from django.views.decorators.http import require_POST
+from django.views.generic import DetailView, TemplateView, FormView, ListView
+from django.views.generic.edit import CreateView, UpdateView
+from django.views.generic.edit import FormMixin # <-- Añadir FormMixin
 from django.utils.text import slugify
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
@@ -11,18 +14,19 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
-from django.http import JsonResponse
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, time
 from urllib.parse import urlencode # Para generar el link de Google Calendar
 from django.utils.timezone import localtime # Para mostrar la hora local
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseForbidden
 # from .forms import RegistrationForm # <-- Descomentaremos esto luego
 from django.urls import reverse_lazy # Para la redirección
-from .forms import UserProfileForm, BusinessConfigForm # <-- Importar el nuevo form
+from .forms import UserProfileForm, BusinessConfigForm, StaffMemberForm, ServiceForm # <-- Importar el nuevo form
+import json
 
 # Importaciones de los nuevos modelos y utilidades
 from CoreApps.users.models import Business, StaffMember, User, Customer, Plan, Subscription, ServiceZone
+from CoreApps.scheduling.models import AvailabilityBlock, TimeOffBlock
 from CoreApps.catalog.models import Service
 from CoreApps.scheduling.models import Appointment
 from .utils import generate_available_slots
@@ -293,6 +297,446 @@ class BusinessConfigView(LoginRequiredMixin, UpdateView):
         messages.success(self.request, "La configuración de tu negocio ha sido actualizada.")
         return response
         
+class ManageStaffView(LoginRequiredMixin, FormMixin, ListView):
+    model = StaffMember
+    template_name = 'dashboard/manage_staff.html'
+    context_object_name = 'staff_list'
+    form_class = StaffMemberForm
+
+    def get_queryset(self):
+        try:
+            business = self.request.user.business_profile
+            return StaffMember.objects.filter(business=business).order_by('name')
+        except Business.DoesNotExist:
+            return StaffMember.objects.none()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            business = self.request.user.business_profile
+            subscription = Subscription.objects.select_related('plan').get(business=business)
+            plan = subscription.plan
+        except (Business.DoesNotExist, Subscription.DoesNotExist):
+             messages.error(self.request, "No se pudo cargar la información de tu negocio o suscripción.")
+             context['can_add_staff'] = False
+             context['limit_message'] = "Error al cargar datos."
+             return context
+
+        context['business'] = business
+        context['subscription'] = subscription
+        context['plan'] = plan
+
+        current_staff_count = self.get_queryset().count()
+        max_staff = plan.max_staff
+        can_add = (max_staff == -1) or (current_staff_count < max_staff)
+
+        context['current_staff_count'] = current_staff_count
+        context['max_staff'] = "Ilimitado" if max_staff == -1 else max_staff
+        context['can_add_staff'] = can_add
+        if not can_add:
+            context['limit_message'] = f"Has alcanzado el límite de {context['max_staff']} miembros de personal para tu plan {plan.name}."
+
+        context['form'] = self.get_form()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        try:
+            business = request.user.business_profile
+            subscription = Subscription.objects.select_related('plan').get(business=business)
+            plan = subscription.plan
+        except (Business.DoesNotExist, Subscription.DoesNotExist):
+            messages.error(request, "Error al procesar la solicitud.")
+            return redirect('manage_staff')
+
+        current_staff_count = StaffMember.objects.filter(business=business).count()
+        max_staff = plan.max_staff
+        if max_staff != -1 and current_staff_count >= max_staff:
+             messages.error(request, f"No puedes añadir más personal. Has alcanzado el límite de {max_staff} para tu plan.")
+             return redirect('manage_staff')
+
+        form = self.get_form()
+        if form.is_valid():
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
+
+    def form_valid(self, form):
+        business = self.request.user.business_profile
+        
+        name = form.cleaned_data['name']
+        give_access = form.cleaned_data['give_access']
+        email = form.cleaned_data.get('email', '').strip()
+        first_name = form.cleaned_data.get('first_name', '').strip()
+        last_name = form.cleaned_data.get('last_name', '').strip()
+        phone_number = form.cleaned_data.get('phone_number', '').strip()
+
+        # Validación extra si se da acceso
+        if give_access and not all([email, first_name, last_name]):
+            messages.error(self.request, "Si das acceso al dashboard, el Correo, Nombre y Apellido son obligatorios.")
+            return self.render_to_response(self.get_context_data(form=form))
+
+        staff_user = None
+        user_created = False
+        if give_access:
+            user = User.objects.filter(email=email).first()
+            if user is None:
+                # Crear nuevo usuario
+                temp_password = User.objects.make_random_password()
+                print(f"DEBUG: Contraseña temporal para {email}: {temp_password}") # ¡BORRAR ESTO EN PRODUCCIÓN!
+                
+                user = User.objects.create_user(
+                    username=email, email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone_number=phone_number, # Guardamos el teléfono
+                    password=temp_password
+                )
+                user_created = True
+                messages.info(self.request, f"Se creó una cuenta para {email}. Deberá usar la contraseña temporal o restablecerla.")
+                # TODO: Enviar email de bienvenida
+            else:
+                 messages.info(self.request, f"El usuario {email} ya existe. Se vinculará al nuevo perfil de personal.")
+                 # Opcional: Actualizar teléfono si el usuario existe y se proporcionó uno nuevo
+                 if phone_number and user.phone_number != phone_number:
+                     user.phone_number = phone_number
+                     user.save(update_fields=['phone_number'])
+
+
+            # Verificar si este usuario ya está vinculado a OTRO staff en ESTE negocio
+            if StaffMember.objects.filter(business=business, user=user).exists():
+                 messages.error(self.request, f"El usuario {email} ya está asignado a otro perfil de personal en este negocio.")
+                 # Si creamos el usuario recién, deberíamos borrarlo para evitar usuarios huérfanos
+                 if user_created:
+                     user.delete()
+                 return self.render_to_response(self.get_context_data(form=form))
+            
+            staff_user = user
+
+        # Crear el StaffMember
+        StaffMember.objects.create(
+            business=business,
+            name=name,
+            user=staff_user # Será None si give_access es False
+        )
+
+        messages.success(self.request, f"Se ha añadido '{name}' al personal.")
+        return redirect('manage_staff')
+
+    def form_invalid(self, form):
+         messages.error(self.request, "Por favor, corrige los errores en el formulario.")
+         return self.render_to_response(self.get_context_data(form=form))
+
+class ServiceListView(LoginRequiredMixin, ListView):
+    """ Muestra la lista de servicios del negocio logueado. """
+    model = Service
+    template_name = 'dashboard/service_list.html'
+    context_object_name = 'services'
+
+    def get_queryset(self):
+        # Filtrar servicios por el negocio del usuario logueado
+        try:
+            business = self.request.user.business_profile
+            return Service.objects.filter(business=business).order_by('name')
+        except Business.DoesNotExist:
+            return Service.objects.none()
+
+    def get_context_data(self, **kwargs):
+        # Opcional: Pasar el business al contexto si la plantilla lo necesita
+        context = super().get_context_data(**kwargs)
+        try:
+             context['business'] = self.request.user.business_profile
+        except Business.DoesNotExist:
+             context['business'] = None
+        return context
+
+class ServiceCreateView(LoginRequiredMixin, CreateView):
+    """ Permite crear un nuevo servicio. """
+    model = Service
+    form_class = ServiceForm
+    template_name = 'dashboard/service_form.html'
+    success_url = reverse_lazy('service_list') # Redirigir a la lista tras crear
+
+    def get_form_kwargs(self):
+        # Pasamos el 'business' actual al __init__ del formulario
+        kwargs = super().get_form_kwargs()
+        kwargs['business'] = self.request.user.business_profile
+        return kwargs
+
+    def form_valid(self, form):
+        # Asignamos el negocio al servicio antes de guardarlo
+        form.instance.business = self.request.user.business_profile
+        messages.success(self.request, f"Servicio '{form.instance.name}' creado con éxito.")
+        return super().form_valid(form)
+    
+    def get_context_data(self, **kwargs):
+        # Añadir título para la plantilla
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = "Añadir Nuevo Servicio"
+        return context
+
+class ServiceUpdateView(LoginRequiredMixin, UpdateView):
+    """ Permite editar un servicio existente. """
+    model = Service
+    form_class = ServiceForm
+    template_name = 'dashboard/service_form.html'
+    success_url = reverse_lazy('service_list') # Redirigir a la lista tras editar
+
+    def get_queryset(self):
+        # Asegurarnos que solo se puedan editar servicios del negocio propio
+        business = self.request.user.business_profile
+        return Service.objects.filter(business=business)
+
+    def get_form_kwargs(self):
+        # Pasamos el 'business' actual al __init__ del formulario
+        kwargs = super().get_form_kwargs()
+        kwargs['business'] = self.request.user.business_profile
+        return kwargs
+
+    def form_valid(self, form):
+        messages.success(self.request, f"Servicio '{form.instance.name}' actualizado con éxito.")
+        return super().form_valid(form)
+        
+    def get_context_data(self, **kwargs):
+        # Añadir título para la plantilla
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = f"Editar Servicio: {self.object.name}"
+        return context
+
+# En CoreApps/main/views.py
+
+class ManageAvailabilityView(LoginRequiredMixin, TemplateView):
+    template_name = 'dashboard/manage_availability.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        business = None
+        selected_staff = None
+        staff_list = []
+
+        try:
+            business = user.business_profile
+            staff_list = StaffMember.objects.filter(business=business, is_active=True).order_by('name')
+
+            staff_id_param = self.request.GET.get('staff_id')
+            if staff_id_param:
+                try:
+                    selected_staff = staff_list.get(id=staff_id_param)
+                except StaffMember.DoesNotExist:
+                    messages.warning(self.request, "El miembro del personal seleccionado no es válido.")
+                    selected_staff = staff_list.filter(user=user).first() or staff_list.first()
+            else:
+                 selected_staff = staff_list.filter(user=user).first() or staff_list.first()
+
+            context['business'] = business
+            context['staff_list'] = staff_list
+            context['selected_staff'] = selected_staff
+            
+            # --- La lógica de 'calendar_events_json' se ha ELIMINADO de aquí ---
+
+        except Business.DoesNotExist:
+             messages.error(self.request, "No se encontró un negocio asociado a tu cuenta.")
+        except Exception as e:
+            messages.error(self.request, f"Ocurrió un error inesperado al cargar datos: {e}")
+
+        # Ya no pasamos 'calendar_events_json'
+        return context
+
+#API para calendarios y disponibilidad
+@login_required
+@require_POST # Solo permitir peticiones POST
+def api_create_availability(request):
+    """
+    Endpoint de API para crear bloques de disponibilidad (Horario Laboral),
+    incluyendo lógica de recurrencia.
+    """
+    try:
+        staff_id = request.POST.get('staff_id')
+        start_dt_str = request.POST.get('start_time')
+        end_dt_str = request.POST.get('end_time')
+        staff_can_edit = request.POST.get('staff_can_edit') == 'on' # Checkbox
+        is_repeating = request.POST.get('repeat') == 'on' # Checkbox
+        repeat_days = request.POST.getlist('repeat_on') # Lista de días (ej: ['0', '2', '4'])
+        repeat_until_str = request.POST.get('repeat_until')
+
+        # --- Validación de Permisos ---
+        staff_member = get_object_or_404(StaffMember, id=staff_id)
+        # El usuario logueado debe ser el dueño del negocio de este staff
+        if staff_member.business.user != request.user:
+            return JsonResponse({'success': False, 'error': 'No tienes permiso para modificar este calendario.'}, status=403)
+
+        # --- Parseo de Fechas/Horas ---
+        start_datetime = datetime.fromisoformat(start_dt_str)
+        end_datetime = datetime.fromisoformat(end_dt_str)
+        start_time_obj = start_datetime.time()
+        end_time_obj = end_datetime.time()
+
+        if end_datetime <= start_datetime:
+            return JsonResponse({'success': False, 'error': 'La hora de fin debe ser posterior a la hora de inicio.'}, status=400)
+
+        blocks_to_create = []
+
+        if is_repeating and repeat_days and repeat_until_str:
+            # --- Lógica de Recurrencia ---
+            repeat_until_date = datetime.strptime(repeat_until_str, '%Y-%m-%d').date()
+            current_date = start_datetime.date()
+            end_repeat_date = min(repeat_until_date, current_date + timedelta(days=365)) # Límite de 1 año
+
+            repeat_days_int = [int(day) for day in repeat_days] # Convertir a enteros (0=Lunes, 6=Domingo)
+
+            while current_date <= end_repeat_date:
+                # Si el día de la semana está en los días seleccionados
+                if current_date.weekday() in repeat_days_int:
+                    # Crear el datetime de inicio y fin para ESE día
+                    new_start_dt = timezone.make_aware(datetime.combine(current_date, start_time_obj))
+                    new_end_dt = timezone.make_aware(datetime.combine(current_date, end_time_obj))
+                    
+                    blocks_to_create.append(
+                        AvailabilityBlock(
+                            staff_member=staff_member,
+                            start_time=new_start_dt,
+                            end_time=new_end_dt,
+                            staff_can_edit=staff_can_edit
+                        )
+                    )
+                current_date += timedelta(days=1)
+        else:
+            # --- Creación Única ---
+            blocks_to_create.append(
+                AvailabilityBlock(
+                    staff_member=staff_member,
+                    start_time=timezone.make_aware(start_datetime),
+                    end_time=timezone.make_aware(end_datetime),
+                    staff_can_edit=staff_can_edit
+                )
+            )
+
+        # TODO: Añadir validación de solapamiento (overlap) aquí antes de crear
+
+        # Crear todos los bloques en la base de datos
+        AvailabilityBlock.objects.bulk_create(blocks_to_create)
+        
+        return JsonResponse({'success': True, 'message': f'Se crearon {len(blocks_to_create)} bloques.'})
+
+    except Exception as e:
+        print(f"Error en api_create_availability: {e}") # Para depuración en servidor
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def api_create_time_off(request):
+    """
+    Endpoint de API para crear un bloqueo de tiempo libre (TimeOffBlock).
+    """
+    try:
+        staff_id = request.POST.get('staff_id')
+        start_dt_str = request.POST.get('start_time')
+        end_dt_str = request.POST.get('end_time')
+        reason = request.POST.get('reason', '')
+
+        # --- Validación de Permisos ---
+        staff_member = get_object_or_404(StaffMember, id=staff_id)
+        # El dueño O el propio staff (si tiene login) pueden crear un bloqueo
+        is_owner = staff_member.business.user == request.user
+        is_self = staff_member.user == request.user
+        
+        if not is_owner and not is_self:
+            return JsonResponse({'success': False, 'error': 'No tienes permiso para crear este bloqueo.'}, status=403)
+
+        start_datetime = timezone.make_aware(datetime.fromisoformat(start_dt_str))
+        end_datetime = timezone.make_aware(datetime.fromisoformat(end_dt_str))
+
+        if end_datetime <= start_datetime:
+            return JsonResponse({'success': False, 'error': 'La hora de fin debe ser posterior a la hora de inicio.'}, status=400)
+        
+        # TODO: Validación de solapamiento
+
+        TimeOffBlock.objects.create(
+            staff_member=staff_member,
+            start_time=start_datetime,
+            end_time=end_datetime,
+            reason=reason
+        )
+
+        return JsonResponse({'success': True, 'message': 'Bloqueo creado.'})
+
+    except Exception as e:
+        print(f"Error en api_create_time_off: {e}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@login_required
+def api_get_availability_events(request):
+    """
+    Endpoint de API para que FullCalendar obtenga los eventos (horarios y bloqueos)
+    de un miembro del personal.
+    """
+    # Obtenemos el staff_id de los parámetros GET (ej: ?staff_id=8)
+    staff_id = request.GET.get('staff_id')
+    
+    # Parámetros opcionales que FullCalendar envía automáticamente
+    # start_str = request.GET.get('start')
+    # end_str = request.GET.get('end')
+
+    if not staff_id:
+        return JsonResponse([], safe=False) # Devolver lista vacía si no hay staff
+
+    try:
+        staff_member = StaffMember.objects.get(id=staff_id)
+        
+        # --- Validación de Permisos ---
+        # El usuario logueado debe ser el dueño del negocio O el propio staff
+        is_owner = staff_member.business.user == request.user
+        is_self = staff_member.user == request.user
+        
+        if not is_owner and not is_self:
+            return JsonResponse({'error': 'No tienes permiso'}, status=403)
+        
+        # --- Obtener y Formatear Eventos ---
+        # Filtramos por staff. FullCalendar manejará el filtrado por rango de fechas
+        # si le pasamos todos los eventos.
+        availability_blocks = AvailabilityBlock.objects.filter(staff_member=staff_member)
+        time_off_blocks = TimeOffBlock.objects.filter(staff_member=staff_member)
+        
+        events = []
+        # Formatear Horarios Laborales
+        for block in availability_blocks:
+            events.append({
+                'id': f'avail_{block.pk}',
+                'title': 'Disponible',
+                'start': block.start_time.isoformat(),
+                'end': block.end_time.isoformat(),
+                'display': 'background',
+                'color': '#d1e7dd',
+                'extendedProps': {
+                    'type': 'availability',
+                    'editable_by_staff': block.staff_can_edit
+                }
+            })
+        # Formatear Bloqueos de Tiempo Libre
+        for block in time_off_blocks:
+             events.append({
+                'id': f'off_{block.pk}',
+                'title': block.reason or 'Tiempo Bloqueado',
+                'start': block.start_time.isoformat(),
+                'end': block.end_time.isoformat(),
+                'color': '#f8d7da',
+                'borderColor': '#dc3545',
+                'textColor': '#58151c',
+                 'extendedProps': {
+                    'type': 'time_off'
+                }
+            })
+            
+        # Devolvemos la lista de eventos como JSON
+        return JsonResponse(events, safe=False)
+
+    except StaffMember.DoesNotExist:
+        return JsonResponse([], safe=False)
+    except Exception as e:
+        print(f"Error en api_get_availability_events: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+#------------------------------------------------------------------------------#
 #Primera pantalla donde se muestran los servicios y logo de la empresa.
 class BusinessPublicProfileView(DetailView):
     model = Business

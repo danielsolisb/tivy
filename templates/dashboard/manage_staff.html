@@ -1,0 +1,171 @@
+{% extends 'dashboard/dashboard_base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}Gestionar Personal - Tivy{% endblock %}
+
+{% block page_title %}Gestionar Personal{% endblock %}
+
+{% block breadcrumb %}
+    <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    <li class="active">Gestionar Personal</li>
+{% endblock %}
+
+{% block content %}
+
+    {% if messages %}
+        {% for message in messages %}
+             <div class="alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'info' %}alert-info{% else %}alert-danger{% endif %} alert-dismissible">
+                <button class="close" data-dismiss="alert"><i class="pci-cross pci-circle"></i></button>
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="panel">
+        <div class="panel-heading">
+            <h3 class="panel-title">Personal / Recursos Actuales ({{ current_staff_count }}/{{ max_staff }})</h3>
+        </div>
+        <div class="panel-body">
+            {% if staff_list %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Tipo</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for staff in staff_list %}
+                            <tr>
+                                <td>{{ staff.name }}</td>
+                                <td>
+                                    {% if staff.user %}
+                                        <span class="badge badge-info">Usuario con Acceso</span>
+                                    {% else %}
+                                        <span class="badge badge-default">Recurso</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if staff.is_active %}
+                                        <span class="badge badge-success">Activo</span>
+                                    {% else %}
+                                        <span class="badge badge-danger">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {# --- BOTÓN EDITAR ACTIVADO (apunta a URL futura) --- #}
+                                    {# TODO: Crear URL y vista 'edit_staff' #}
+                                    <a href="#" class="btn btn-xs btn-default">Editar</a> 
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p>Aún no has añadido personal o recursos.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {# --- Formulario para Añadir Nuevo --- #}
+    {% if can_add_staff %}
+        <div class="panel">
+            <div class="panel-heading">
+                <h3 class="panel-title">Añadir Nuevo Personal o Recurso</h3>
+            </div>
+            <div class="panel-body">
+                <form method="post" id="add-staff-form">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                         <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+                         {{ form.name|add_class:"form-control" }}
+                         {% include 'includes/field_errors.html' with field=form.name %}
+                    </div>
+
+                    <div class="form-check mb-3">
+                        {# Usamos el ID explícito que le dimos al widget #}
+                        {{ form.give_access|add_class:"form-check-input"|attr:"id:id_give_access" }} 
+                        <label class="form-check-label" for="id_give_access">
+                            {{ form.give_access.label }}
+                        </label>
+                         {% include 'includes/field_errors.html' with field=form.give_access %}
+                    </div>
+                    
+                    {# --- Campos Condicionales Actualizados --- #}
+                    <div id="access-fields" style="display: {% if form.give_access.value %}block{% else %}none{% endif %};">
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+                            {{ form.email|add_class:"form-control" }}
+                            <small class="form-text text-muted">Si el usuario ya existe, se vinculará. Si no, se creará una cuenta.</small>
+                            {% include 'includes/field_errors.html' with field=form.email %}
+                        </div>
+                         <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">{{ form.first_name.label }}</label>
+                                {{ form.first_name|add_class:"form-control" }}
+                                {% include 'includes/field_errors.html' with field=form.first_name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">{{ form.last_name.label }}</label>
+                                {{ form.last_name|add_class:"form-control" }}
+                                {% include 'includes/field_errors.html' with field=form.last_name %}
+                            </div>
+                        </div>
+                         <div class="mb-3">
+                            <label for="{{ form.phone_number.id_for_label }}" class="form-label">{{ form.phone_number.label }}</label>
+                            {{ form.phone_number|add_class:"form-control" }}
+                            {% include 'includes/field_errors.html' with field=form.phone_number %}
+                        </div>
+                    </div>
+                     {# --- Fin Campos Condicionales --- #}
+
+                    <button type="submit" class="btn btn-primary">Añadir</button>
+                </form>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-warning">
+            {{ limit_message }} <a href="#">Actualiza tu plan</a> para añadir más personal.
+        </div>
+    {% endif %}
+
+{% endblock %}
+
+{% block page_script %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const giveAccessCheckbox = document.getElementById('id_give_access'); // Usamos el ID que pusimos
+    const accessFieldsDiv = document.getElementById('access-fields');
+    // Seleccionamos todos los inputs dentro del div condicional
+    const accessInputs = accessFieldsDiv ? accessFieldsDiv.querySelectorAll('input') : []; 
+
+    function toggleAccessFields() {
+        if (!giveAccessCheckbox || !accessFieldsDiv) return;
+        
+        const isChecked = giveAccessCheckbox.checked;
+        accessFieldsDiv.style.display = isChecked ? 'block' : 'none';
+        
+        // Hacemos que los campos dentro sean requeridos solo si el checkbox está marcado
+        accessInputs.forEach(input => {
+            // Asumimos que todos excepto el teléfono son requeridos si se da acceso
+            if (input.name !== 'phone_number'){
+                 input.required = isChecked;
+            } else {
+                 input.required = false; // Teléfono sigue siendo opcional
+            }
+        });
+    }
+
+    if(giveAccessCheckbox){
+        toggleAccessFields(); // Ejecutar al cargar
+        giveAccessCheckbox.addEventListener('change', toggleAccessFields); // Ejecutar al cambiar
+    }
+});
+</script>
+{% endblock %}

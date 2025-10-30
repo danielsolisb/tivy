@@ -1,0 +1,77 @@
+{% extends 'dashboard/dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Gestionar Servicios - Tivy{% endblock %}
+{% block page_title %}Gestionar Servicios{% endblock %}
+
+{% block breadcrumb %}
+    <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    <li class="active">Gestionar Servicios</li>
+{% endblock %}
+
+{% block content %}
+
+    {% if messages %}
+        {% for message in messages %}
+             <div class="alert alert-success alert-dismissible">
+                <button class="close" data-dismiss="alert"><i class="pci-cross pci-circle"></i></button>
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="panel">
+        <div class="panel-heading">
+            <div class="panel-control">
+                {# Botón para añadir nuevo servicio #}
+                <a href="{% url 'service_create' %}" class="btn btn-primary btn-sm">
+                    <i class="demo-pli-add"></i> Añadir Servicio
+                </a>
+            </div>
+            <h3 class="panel-title">Tus Servicios</h3>
+        </div>
+        <div class="panel-body">
+            {% if services %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Duración</th>
+                                <th>Precio</th>
+                                <th>Ubicación</th>
+                                <th>Activo</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for service in services %}
+                            <tr>
+                                <td>{{ service.name }}</td>
+                                <td>{{ service.duration }}</td>
+                                <td>${{ service.price|floatformat:2 }}</td>
+                                <td>{{ service.get_location_type_display }}</td>
+                                <td>
+                                    {% if service.is_active %}
+                                        <span class="badge badge-success">Sí</span>
+                                    {% else %}
+                                        <span class="badge badge-danger">No</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'service_update' pk=service.pk %}" class="btn btn-xs btn-default">Editar</a>
+                                    {# TODO: Añadir botón/lógica para desactivar/eliminar #}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p>Aún no has creado ningún servicio.</p>
+                <a href="{% url 'service_create' %}" class="btn btn-primary">Crear tu primer servicio</a>
+            {% endif %}
+        </div>
+    </div>
+
+{% endblock %}

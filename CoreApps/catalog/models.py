@@ -24,13 +24,18 @@ class Service(models.Model):
         default=LocationType.LOCAL_ONLY,
         help_text="Define dónde se puede realizar este servicio específico."
     )
-    # --- NUEVO CAMPO ---
     # Conecta qué miembros del personal pueden realizar este servicio.
     assignees = models.ManyToManyField(
         StaffMember,
         related_name='services_offered',
         blank=True,
         help_text="Personal asignado para realizar este servicio."
+    )
+    photo = models.ImageField(
+        upload_to='services/photos/', 
+        null=True, 
+        blank=True, 
+        help_text="Imagen representativa del servicio (opcional)."
     )
     is_active = models.BooleanField(default=True)
 

@@ -19,7 +19,16 @@ from .views import (
     RegistrationView,
     UserProfileView,
     check_customer_view,
-    BusinessConfigView
+    BusinessConfigView,
+    ManageStaffView,
+    ServiceListView,    # <-- Nueva
+    ServiceCreateView,  # <-- Nueva
+    ServiceUpdateView,   # <-- Nueva
+    ManageAvailabilityView,
+    #API
+    api_create_availability,
+    api_create_time_off,
+    api_get_availability_events
 )
 
 urlpatterns = [
@@ -46,12 +55,23 @@ urlpatterns = [
          ),
          name='password_change_done'),
     path('dashboard/configuracion/', BusinessConfigView.as_view(), name='business_config'),
-    
+    path('dashboard/personal/', ManageStaffView.as_view(), name='manage_staff'),
+    path('dashboard/servicios/', ServiceListView.as_view(), name='service_list'),
+    path('dashboard/servicios/nuevo/', ServiceCreateView.as_view(), name='service_create'),
+    path('dashboard/servicios/<int:pk>/editar/', ServiceUpdateView.as_view(), name='service_update'),
+    path('dashboard/disponibilidad/', ManageAvailabilityView.as_view(), name='manage_availability'),
+
+    #--------------Flujo de reserva------------------------------------------------------------------------#
     path('p/<slug:slug>/', BusinessPublicProfileView.as_view(), name='business_profile'),
     path('p/<slug:slug>/select-time/', SelectStaffAndTimeView.as_view(), name='select_staff_and_time'),
     path('p/<slug:slug>/confirm/', ConfirmBookingView.as_view(), name='confirm_booking'),
     path('booking-confirmed/<int:pk>/', BookingConfirmedView.as_view(), name='booking_confirmed'),
     path('appointment/<int:pk>/reschedule/', RescheduleAppointmentView.as_view(), name='reschedule_appointment'),
     
+    #Api Endpoints
     path('api/check-customer/', check_customer_view, name='check_customer'),
+    #Api para el calendario y disponibilidad
+    path('api/availability/create/', api_create_availability, name='api_create_availability'),
+    path('api/timeoff/create/', api_create_time_off, name='api_create_time_off'),
+    path('api/availability/events/', api_get_availability_events, name='api_get_availability_events'),
 ]

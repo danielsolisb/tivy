@@ -1,0 +1,115 @@
+{% extends 'dashboard/dashboard_base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}{{ page_title }} - Tivy{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    <li><a href="{% url 'service_list' %}">Gestionar Servicios</a></li>
+    <li class="active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+
+    {% if form.errors %}
+        <div class="alert alert-danger">
+            <strong>Por favor, corrige los errores abajo:</strong>
+            <ul>
+                {% for field, errors in form.errors.items %}
+                    {% for error in errors %}
+                        <li>{{ field }}: {{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <div class="panel">
+        <div class="panel-heading">
+            <h3 class="panel-title">{{ page_title }}</h3>
+        </div>
+        <div class="panel-body">
+            {# ¡IMPORTANTE! enctype para subir fotos #}
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                         <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+                         {{ form.name|add_class:"form-control" }}
+                         {% include 'includes/field_errors.html' with field=form.name %}
+                    </div>
+                     <div class="col-md-3 mb-3">
+                        <label for="{{ form.duration.id_for_label }}" class="form-label">{{ form.duration.label }}</label>
+                        {{ form.duration|add_class:"form-control" }}
+                        <small class="form-text text-muted">{{ form.duration.help_text }}</small>
+                        {% include 'includes/field_errors.html' with field=form.duration %}
+                    </div>
+                     <div class="col-md-3 mb-3">
+                        <label for="{{ form.price.id_for_label }}" class="form-label">{{ form.price.label }}</label>
+                        {{ form.price|add_class:"form-control" }}
+                        {% include 'includes/field_errors.html' with field=form.price %}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                     <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                     {{ form.description|add_class:"form-control" }}
+                     {% include 'includes/field_errors.html' with field=form.description %}
+                </div>
+                
+                <hr>
+
+                 <div class="row">
+                      <div class="col-md-6 mb-3">
+                        <label for="{{ form.location_type.id_for_label }}" class="form-label">{{ form.location_type.label }}</label>
+                        {{ form.location_type|add_class:"form-control" }}
+                        <small class="form-text text-muted">Las opciones dependen de la configuración de tu negocio.</small>
+                        {% include 'includes/field_errors.html' with field=form.location_type %}
+                    </div>
+                      <div class="col-md-6 mb-3">
+                        {# Mostramos la foto actual si estamos editando #}
+                        {% if form.instance.pk and form.instance.photo %}
+                         <p class="mb-1"><small>Foto actual:</small></p>
+                         <img src="{{ form.instance.photo.url }}" alt="Foto {{ form.instance.name }}" style="max-height: 60px; margin-bottom: 5px;">
+                        {% endif %}
+                         <label for="{{ form.photo.id_for_label }}" class="form-label">{{ form.photo.label }}</label>
+                         {{ form.photo|add_class:"form-control" }}
+                         {% include 'includes/field_errors.html' with field=form.photo %}
+                    </div>
+                 </div>
+
+                 <div class="mb-3">
+                     <label for="{{ form.assignees.id_for_label }}" class="form-label">{{ form.assignees.label }}</label>
+                     {# Usamos render_field para un mejor control del widget M2M si es necesario #}
+                     {# O simplemente {{ form.assignees }} si SelectMultiple es suficiente #}
+                     {{ form.assignees }} 
+                     <small class="form-text text-muted">{{ form.assignees.help_text }} (Mantén Ctrl para seleccionar varios).</small>
+                     {% include 'includes/field_errors.html' with field=form.assignees %}
+                     {# Para filter_horizontal, necesitarías añadir {{ form.media }} en el head de dashboard_base.html #}
+                 </div>
+
+                 <div class="form-check mb-3">
+                    {{ form.is_active|add_class:"form-check-input" }}
+                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                        {{ form.is_active.label }}
+                    </label>
+                     {% include 'includes/field_errors.html' with field=form.is_active %}
+                </div>
+
+                <button type="submit" class="btn btn-primary">Guardar Servicio</button>
+                <a href="{% url 'service_list' %}" class="btn btn-default">Cancelar</a>
+            </form>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block page_script %}
+{# Si usas filter_horizontal para assignees, necesitarás añadir esto #}
+{# {{ form.media.js }} #}
+{# Asegurate de que jQuery esté cargado ANTES de form.media.js #}
+{# Considera usar un widget M2M alternativo si filter_horizontal da problemas #}
+{% endblock %}

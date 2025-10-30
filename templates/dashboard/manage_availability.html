@@ -1,0 +1,386 @@
+{% extends 'dashboard/dashboard_base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}Gestionar Disponibilidad - Tivy{% endblock %}
+
+{% block page_title %}Gestionar Disponibilidad{% endblock %}
+
+{% block breadcrumb %}
+    <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    <li class="active">Gestionar Disponibilidad</li>
+{% endblock %}
+
+{% block page_head %}
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css' rel='stylesheet' />
+    
+    <style>
+        #calendar {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 1rem;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        /* Estilos para los campos condicionales del modal */
+        .conditional-fields {
+            display: none; /* Ocultos por defecto */
+            padding-left: 20px;
+            border-left: 3px solid #f0f0f0;
+            margin-top: 15px;
+        }
+    </style>
+{% endblock %}
+
+
+{% block content %}
+
+    {% if messages %}
+        {% for message in messages %}
+             <div class="alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'info' %}alert-info{% else %}alert-danger{% endif %} alert-dismissible">
+                <button class="close" data-dismiss="alert"><i class="pci-cross pci-circle"></i></button>
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="panel">
+        <div class="panel-heading">
+            <h3 class="panel-title">Calendario de Disponibilidad</h3>
+        </div>
+        <div class="panel-body">
+
+            {# --- Selector de Staff Member --- #}
+            {% if staff_list|length > 1 %}
+            <div class="row mb-3 align-items-center"> 
+                <div class="col-md-6 col-lg-4">
+                    <label for="staff-select" class="form-label mb-0">Viendo calendario de:</label>
+                    <select id="staff-select" class="form-control form-select">
+                        {% for staff in staff_list %}
+                            <option value="{{ staff.id }}" {% if selected_staff.id == staff.id %}selected{% endif %}>
+                                {{ staff.name }} {% if staff.user == request.user %}(Tú){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                 <div class="col-md-6 col-lg-8 text-md-end mt-2 mt-md-0 align-self-end">
+                     <button class="btn btn-primary" id="btn-add-event">
+                        <i class="demo-pli-add"></i> Añadir Horario / Bloqueo
+                    </button>
+                 </div>
+            </div>
+            <hr class="mt-0">
+            {% elif selected_staff %}
+             <div class="d-flex justify-content-between align-items-center mb-3"> 
+                 <p class="mb-0">Mostrando tu calendario, <strong>{{ selected_staff.name }}</strong>.</p>
+                 <button class="btn btn-primary" id="btn-add-event">
+                     <i class="demo-pli-add"></i> Añadir Horario / Bloqueo
+                 </button>
+             </div>
+             <hr class="mt-0">
+            {% else %}
+             <div class="alert alert-warning">No se encontró personal para gestionar la disponibilidad.</div>
+            {% endif %}
+
+            {# --- Contenedor del Calendario --- #}
+            {% if selected_staff %}
+                <p class="text-center text-muted">Calendario para: <strong>{{ selected_staff.name }}</strong></p>
+                <div id='calendar'>
+                    <div class="text-center p-5"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Cargando calendario...</div>
+                </div>
+            {% endif %}
+
+        </div> {# Fin panel-body #}
+    </div> {# Fin panel #}
+
+
+    {# --- INICIO DEL MODAL PARA AÑADIR/EDITAR EVENTOS --- #}
+    <div class="modal fade" id="eventModal" tabindex="-1" role="dialog" aria-labelledby="eventModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form id="eventForm"> {# Formulario que enviaremos con JS #}
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="eventModalLabel">Añadir/Editar Horario</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        {# Campos ocultos para IDs y tipo de acción #}
+                        <input type="hidden" id="modal_event_id" name="event_id">
+                        <input type="hidden" id="modal_staff_id" name="staff_id" value="{{ selected_staff.id }}">
+
+                        {# --- Selector de Tipo: Horario o Bloqueo --- #}
+                        <div class="form-group mb-3">
+                            <label class="form-label">Tipo de Evento</label>
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="event_type" id="type_horario" value="availability" checked>
+                                    <label class="form-check-label" for="type_horario">Horario Laboral</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="event_type" id="type_bloqueo" value="time_off">
+                                    <label class="form-check-label" for="type_bloqueo">Bloqueo / Tiempo Libre</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        {# --- Campos de Fecha y Hora --- #}
+                        <div class="form-group mb-3">
+                            <label for="modal_start_time" class="form-label">Inicio</label>
+                            <input type="datetime-local" class="form-control" id="modal_start_time" name="start_time" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="modal_end_time" class="form-label">Fin</label>
+                            <input type="datetime-local" class="form-control" id="modal_end_time" name="end_time" required>
+                        </div>
+
+                        {# --- Campos Condicionales para HORARIO LABORAL --- #}
+                        <div id="horario-fields" class="conditional-fields">
+                            {% if selected_staff.user %} {# Solo mostrar si el staff es un usuario #}
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="modal_staff_can_edit" name="staff_can_edit" checked>
+                                <label class="form-check-label" for="modal_staff_can_edit">
+                                    Permitir que <strong>{{ selected_staff.name }}</strong> edite este bloque
+                                </label>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="modal_repeat" name="repeat">
+                                <label class="form-check-label" for="modal_repeat">
+                                    Repetir...
+                                </label>
+                            </div>
+                            
+                            <div id="recurrence-fields" class="conditional-fields">
+                                <label class="form-label">Repetir en días:</label>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="repeat_on" value="0"><label>Lun</label></div>
+                                    <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="repeat_on" value="1"><label>Mar</label></div>
+                                    <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="repeat_on" value="2"><label>Mié</label></div>
+                                    <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="repeat_on" value="3"><label>Jue</label></div>
+                                    <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="repeat_on" value="4"><label>Vie</label></div>
+                                    <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="repeat_on" value="5"><label>Sáb</label></div>
+                                    <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="repeat_on" value="6"><label>Dom</label></div>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="modal_repeat_until" class="form-label">Repetir hasta</label>
+                                    <input type="date" class="form-control" id="modal_repeat_until" name="repeat_until">
+                                </div>
+                            </div>
+                        </div>
+
+                        {# --- Campos Condicionales para BLOQUEO --- #}
+                        <div id="bloqueo-fields" class="conditional-fields">
+                             <div class="form-group mb-3">
+                                <label for="modal_reason" class="form-label">Motivo (Opcional)</label>
+                                <input type="text" class="form-control" id="modal_reason" name="reason" placeholder="Ej: Almuerzo, Cita Médica">
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                        <button type="button" class="btn btn-danger" id="btn-delete-event" style="display: none;">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {# --- FIN DEL MODAL --- #}
+
+{% endblock %}
+
+{% block page_script %}
+    {# --- FullCalendar JS --- #}
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
+
+    {# --- Lógica del Calendario --- #}
+    <script>
+        // Envolvemos todo en DOMContentLoaded para asegurar que el HTML esté cargado
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // --- Referencias a Elementos ---
+            const eventModal = $('#eventModal'); // jQuery para el modal de Nifty/Bootstrap
+            const calendarEl = document.getElementById('calendar');
+            let calendar; // Variable global para el calendario
+            
+            const selectedStaffId = "{{ selected_staff.id }}";
+            
+            const staffSelect = document.getElementById('staff-select');
+            const addEventButton = document.getElementById('btn-add-event');
+            
+            // Elementos del Modal (los buscamos *dentro* de DOMContentLoaded)
+            const radioHorario = document.getElementById('type_horario');
+            const radioBloqueo = document.getElementById('type_bloqueo');
+            const horarioFields = document.getElementById('horario-fields');
+            const bloqueoFields = document.getElementById('bloqueo-fields');
+            const repeatCheckbox = document.getElementById('modal_repeat');
+            const recurrenceFields = document.getElementById('recurrence-fields');
+            const repeatUntilInput = document.getElementById('modal_repeat_until');
+            const eventForm = document.getElementById('eventForm'); // Obtenemos el formulario
+
+            // --- Lógica del Selector de Staff ---
+            if (staffSelect) {
+                staffSelect.addEventListener('change', function() {
+                    const selectedStaffId = this.value;
+                    window.location.href = `{% url 'manage_availability' %}?staff_id=${selectedStaffId}`;
+                });
+            }
+
+            // --- Lógica de campos condicionales del Modal ---
+            function toggleRecurrenceFields() {
+                if(repeatCheckbox && recurrenceFields && repeatUntilInput) {
+                    const isRepeating = repeatCheckbox.checked;
+                    recurrenceFields.style.display = isRepeating ? 'block' : 'none';
+                    repeatUntilInput.required = isRepeating; // Hacer requerido si se repite
+                }
+            }
+
+            function toggleModalFields() {
+                if (!radioHorario || !radioBloqueo || !horarioFields || !bloqueoFields) return;
+
+                if (radioHorario.checked) {
+                    horarioFields.style.display = 'block';
+                    bloqueoFields.style.display = 'none';
+                    toggleRecurrenceFields(); // Chequear si la recurrencia debe mostrarse
+                } else { // radioBloqueo está chequeado
+                    horarioFields.style.display = 'none';
+                    bloqueoFields.style.display = 'block';
+                    if(recurrenceFields) recurrenceFields.style.display = 'none';
+                }
+            }
+            
+            // Asignar eventos solo si los elementos existen
+            if (radioHorario) radioHorario.addEventListener('change', toggleModalFields);
+            if (radioBloqueo) radioBloqueo.addEventListener('change', toggleModalFields);
+            if (repeatCheckbox) repeatCheckbox.addEventListener('change', toggleRecurrenceFields);
+
+            // --- Inicialización de FullCalendar ---
+            if (calendarEl && typeof FullCalendar !== 'undefined' && selectedStaffId) { 
+                try {
+                    calendar = new FullCalendar.Calendar(calendarEl, {
+                        initialView: 'timeGridWeek',
+                        locale: 'es', 
+                        headerToolbar: {
+                             left: 'prev,next today',
+                             center: 'title',
+                             right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                        },
+                        // Obtenemos eventos desde el API endpoint
+                        events: "{% url 'api_get_availability_events' %}?staff_id=" + selectedStaffId,
+                        
+                        selectable: true,
+                        editable: true, 
+                        slotMinTime: '07:00:00',
+                        slotMaxTime: '21:00:00',
+                        allDaySlot: false,
+                        height: 'auto', 
+
+                        select: function(info) {
+                            if (eventForm) eventForm.reset();
+                            $('#modal_event_id').val(''); 
+                            $('#eventModalLabel').text('Añadir Disponibilidad');
+                            $('#btn-delete-event').hide();
+                            
+                            $('#modal_start_time').val(info.startStr.slice(0, 16));
+                            $('#modal_end_time').val(info.endStr.slice(0, 16));
+                            
+                            // Asegurarnos que los campos condicionales se reseteen
+                            toggleModalFields();
+                            
+                            calendar.unselect();
+                            eventModal.modal('show');
+                        },
+                        eventClick: function(info) {
+                            // TODO: Implementar lógica de Edición/Borrado
+                            alert(`Lógica de Edición/Borrado aún no implementada para ${info.event.id}`);
+                        },
+                    });
+                    calendar.render();
+                } catch(e) {
+                     console.error("Error al inicializar FullCalendar:", e);
+                     calendarEl.innerHTML = "<div class='alert alert-danger'>Error al procesar los datos del calendario.</div>";
+                }
+            } else if (calendarEl) {
+                let errorMsg = "Error: La librería FullCalendar no se cargó correctamente.";
+                if (!selectedStaffId) {
+                    errorMsg = "Por favor, selecciona un miembro del personal para ver su calendario.";
+                }
+                calendarEl.innerHTML = `<div class='alert alert-danger'>${errorMsg}</div>`;
+            }
+
+             // --- Lógica del Botón "Añadir Horario / Bloqueo" ---
+             if(addEventButton){
+                 addEventButton.addEventListener('click', function(){
+                    if (eventForm) eventForm.reset();
+                    $('#modal_event_id').val('');
+                    $('#eventModalLabel').text('Añadir Disponibilidad');
+                    $('#btn-delete-event').hide();
+                    
+                    $('#modal_start_time').val('');
+                    $('#modal_end_time').val('');
+                    
+                    toggleModalFields(); // Resetear campos condicionales
+                    
+                    eventModal.modal('show');
+                 });
+             }
+
+             // --- Lógica de Envío del Formulario (AJAX) ---
+             if (eventForm) {
+                 eventForm.addEventListener('submit', function(e) {
+                     e.preventDefault(); 
+                     
+                     const formData = new FormData(e.target);
+                     const eventType = formData.get('event_type');
+                     let apiUrl = (eventType === 'availability') ? "{% url 'api_create_availability' %}" : "{% url 'api_create_time_off' %}";
+
+                     formData.append('staff_id', selectedStaffId);
+                     // CSRF Token (ya no es necesario si se usa el header 'X-CSRFToken')
+                     // formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+                     const submitButton = $(e.target).find('button[type="submit"]');
+                     submitButton.prop('disabled', true).text('Guardando...');
+
+                     fetch(apiUrl, {
+                         method: 'POST',
+                         body: formData,
+                         headers: { 
+                             'X-CSRFToken': '{{ csrf_token }}' // Django necesita esto para POST vía fetch
+                         }
+                     })
+                     .then(response => {
+                         if (!response.ok) {
+                             // Si la respuesta no es 2xx, la convertimos en un error
+                             return response.json().then(errData => {
+                                 throw new Error(errData.error || 'Error del servidor');
+                             });
+                         }
+                         return response.json();
+                     })
+                     .then(data => {
+                         submitButton.prop('disabled', false).text('Guardar Cambios');
+                         if (data.success) {
+                             eventModal.modal('hide'); 
+                             if (calendar) {
+                                calendar.refetchEvents(); // Recargar eventos
+                             }
+                             alert(data.message || '¡Guardado con éxito!'); 
+                         } else {
+                             alert('Error: ' + data.error);
+                         }
+                     })
+                     .catch(error => {
+                         submitButton.prop('disabled', false).text('Guardar Cambios');
+                         console.error('Error en fetch:', error);
+                         alert('Error de red o del servidor: ' + error.message);
+                     });
+                 });
+             }
+        });
+    </script>
+{% endblock %}

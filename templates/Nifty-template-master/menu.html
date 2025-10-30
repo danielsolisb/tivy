@@ -64,21 +64,24 @@
                             </a>
                         </li>
                         <li>
-                            <a href="#">
+                            <a href="{% url 'manage_staff' %}">
                                 <i class="demo-pli-add-user-star"></i>
                                 <span class="menu-title">Gestionar Personal</span>
-                                {# Aquí podríamos mostrar un badge con el conteo/límite #}
-                                {# {% if plan %} <span class="badge badge-info pull-right">{{ business.staff_members.count }}/{{ plan.max_staff|default:"∞" }}</span> {% endif %} #}
+                                {% if plan and plan.max_staff != -1 %} {# Mostrar contador solo si hay límite #}
+                                    <span class="badge badge-info pull-right">{{ current_staff_count }}/{{ max_staff }}</span> 
+                                {% elif plan %}
+                                     <span class="badge badge-info pull-right">{{ current_staff_count }}/∞</span> {# Mostrar infinito si no hay límite #}
+                                {% endif %}
                             </a>
                         </li>
                          <li>
-                            <a href="#">
+                            <a href="{% url 'service_list' %}">
                                 <i class="demo-pli-folder-with-document"></i>
                                 <span class="menu-title">Gestionar Servicios</span>
                             </a>
                         </li>
                          <li>
-                            <a href="#"> {# Este será el enlace a la página de disponibilidad #}
+                            <a href="{% url 'manage_availability' %}"> 
                                 <i class="demo-pli-calendar-4"></i>
                                 <span class="menu-title">Gestionar Disponibilidad</span>
                             </a>

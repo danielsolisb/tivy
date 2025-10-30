@@ -3,11 +3,25 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import User, Business, StaffMember, Customer, Plan, Subscription, ServiceZone
+from django.utils.html import format_html # Necesario para enlaces (opcional)
+from django.urls import reverse # Necesario para enlaces (opcional)
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    list_display = ('email', 'username', 'first_name', 'last_name', 'is_staff')
+    list_display = (
+        'email',
+        'username',
+        'first_name',
+        'last_name',
+        'get_business_link', # Muestra el negocio (dueño o staff)
+        'is_customer',
+        'is_staff' # Permisos de admin
+    )
     search_fields = ('email', 'username', 'first_name', 'last_name')
+    # --- LÍNEA CORREGIDA ---
+    # Eliminamos los filtros __isnull que no son soportados directamente
+    list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups')
+
     fieldsets = UserAdmin.fieldsets + (
             ('Campos Personalizados', {'fields': ('profile_image',)}),
     )
@@ -15,6 +29,27 @@ class CustomUserAdmin(UserAdmin):
             (None, {'fields': ('profile_image',)}),
     )
 
+    @admin.display(description='Negocio Asociado')
+    def get_business_link(self, obj):
+        business = None
+        role = None
+        if hasattr(obj, 'business_profile') and obj.business_profile is not None:
+            business = obj.business_profile
+            role = "Dueño"
+        elif hasattr(obj, 'staff_profile') and obj.staff_profile is not None:
+            business = obj.staff_profile.business
+            role = "Staff"
+            
+        if business:
+            link = reverse("admin:users_business_change", args=[business.id])
+            return format_html('<a href="{}">{} ({})</a>', link, business.display_name, role)
+        return "N/A"
+
+    @admin.display(boolean=True, description='Cliente?')
+    def is_customer(self, obj):
+        return obj.customer_profiles.exists()
+
+        
 class SubscriptionInline(admin.StackedInline):
     model = Subscription
     extra = 0
