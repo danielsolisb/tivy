@@ -7,10 +7,22 @@ from CoreApps.catalog.models import Service
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'profile_image']
+        
+        # --- CAMBIO AQUÍ ---
+        # Añade 'phone_number' a la lista
+        fields = ['first_name', 'last_name', 'phone_number', 'profile_image']
+        
         widgets = {
             'first_name': forms.TextInput(attrs={'class': 'form-control'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            
+            # --- CAMBIO AQUÍ ---
+            # Añade el widget para el nuevo campo
+            'phone_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: 0991234567'
+            }),
+            
             'profile_image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
 
@@ -49,8 +61,21 @@ class BusinessConfigForm(forms.ModelForm):
 
 class StaffMemberForm(forms.Form):
     """
-    Formulario para añadir un nuevo miembro de personal o recurso.
+    Formulario para añadir o editar un miembro de personal.
+    Modificado para aceptar 'instance' de UpdateView sin ser ModelForm.
     """
+
+    # --- NUEVO MÉTODO __init__ ---
+    def __init__(self, *args, **kwargs):
+        # 1. Sacamos 'instance' de los argumentos. 
+        #    UpdateView (editar) lo pasa, pero forms.Form (base) no lo espera.
+        #    Al sacarlo aquí, evitamos el TypeError.
+        self.instance = kwargs.pop('instance', None)
+        
+        # 2. Llamamos al __init__ original de forms.Form (que ya no verá 'instance')
+        super().__init__(*args, **kwargs)
+    
+    # --- TUS CAMPOS (con el duplicado de email eliminado) ---
     name = forms.CharField(
         label="Nombre del Recurso o Empleado",
         max_length=150,
@@ -61,16 +86,14 @@ class StaffMemberForm(forms.Form):
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
+    
+    # --- ERROR CORREGIDO: Solo un campo de email ---
     email = forms.EmailField(
         label="Correo Electrónico del Empleado",
         required=False, # Solo requerido si give_access es True (validado en la vista)
         widget=forms.EmailInput(attrs={'class': 'form-control'})
     )
-    email = forms.EmailField(
-        label="Correo Electrónico del Empleado",
-        required=False,
-        widget=forms.EmailInput(attrs={'class': 'form-control'})
-    )
+    
     first_name = forms.CharField(
         label="Nombre del Empleado",
         required=False,
@@ -89,8 +112,6 @@ class StaffMemberForm(forms.Form):
         max_length=20,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09xxxxxxxx'})
     )
-    # Podríamos añadir first_name y last_name opcionales si give_access es True
-
 
 class ServiceForm(forms.ModelForm):
     """

@@ -11,7 +11,68 @@
     <li class="active">Gestionar Personal</li>
 {% endblock %}
 
+
 {% block content %}
+
+{# --- INICIO: CSS PARA TABLA RESPONSIVE EN MÓVIL --- #}
+<style>
+@media (max-width: 767px) {
+    /* Ocultamos los encabezados (headers) originales */
+    .table-responsive-cards thead {
+        display: none;
+    }
+
+    /* La fila (tr) se comporta como una tarjeta */
+    .table-responsive-cards tbody tr {
+        display: block;
+        width: 100%;
+        margin-bottom: 1.5rem; /* Aumentado para más espacio */
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    /* La celda (td) se apila verticalmente */
+    .table-responsive-cards tbody td {
+        display: block;
+        width: 100%;
+        text-align: right; /* Alinea el dato a la derecha */
+        padding-left: 50%; /* Deja espacio para el label */
+        padding-top: 12px;
+        padding-bottom: 12px;
+        position: relative;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .table-responsive-cards tbody td:last-child {
+        border-bottom: none; /* Sin borde en la última celda */
+    }
+
+    /* Creamos el "label" (Nombre, Tipo, etc.) usando el atributo data-label */
+    .table-responsive-cards tbody td::before {
+        content: attr(data-label); /* Esta es la magia */
+        position: absolute;
+        left: 15px; /* Más padding */
+        top: 50%;
+        transform: translateY(-50%);
+        width: 45%;
+        text-align: left;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    /* Ajuste para el botón de "Acciones" */
+    .table-responsive-cards tbody td[data-label="Acciones"] {
+        text-align: center;
+        padding-left: 15px; /* Reset padding */
+    }
+    .table-responsive-cards tbody td[data-label="Acciones"]::before {
+        display: none; /* No queremos un label "Acciones:" */
+    }
+}
+</style>
+{# --- FIN: CSS PARA TABLA RESPONSIVE EN MÓVIL --- #}
+
 
     {% if messages %}
         {% for message in messages %}
@@ -28,7 +89,9 @@
         </div>
         <div class="panel-body">
             {% if staff_list %}
-                <div class="table-responsive">
+            
+                {# --- MODIFICACIÓN 1: Se añadió la clase 'table-responsive-cards' --- #}
+                <div class="table-responsive table-responsive-cards">
                     <table class="table table-striped">
                         <thead>
                             <tr>
@@ -41,25 +104,38 @@
                         <tbody>
                             {% for staff in staff_list %}
                             <tr>
-                                <td>{{ staff.name }}</td>
-                                <td>
+                                {# --- MODIFICACIÓN 2: Se añadieron los atributos 'data-label' --- #}
+                                <td data-label="Nombre">{{ staff.name }}</td>
+                                <td data-label="Tipo">
                                     {% if staff.user %}
                                         <span class="badge badge-info">Usuario con Acceso</span>
                                     {% else %}
                                         <span class="badge badge-default">Recurso</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td data-label="Estado">
                                     {% if staff.is_active %}
                                         <span class="badge badge-success">Activo</span>
                                     {% else %}
                                         <span class="badge badge-danger">Inactivo</span>
                                     {% endif %}
                                 </td>
-                                <td>
-                                    {# --- BOTÓN EDITAR ACTIVADO (apunta a URL futura) --- #}
-                                    {# TODO: Crear URL y vista 'edit_staff' #}
-                                    <a href="#" class="btn btn-xs btn-default">Editar</a> 
+                                <td data-label="Acciones">
+                                    {% if staff.user == request.user %}
+        
+                                    <button class="btn btn-xs btn-default" 
+                                            disabled="disabled" 
+                                            title="Para editar tus datos personales, ve a 'Configuración Negocio' o 'Mi Perfil'.">
+                                        Editar (Tú)
+                                    </button>
+                                    
+                                {% else %}
+                                
+                                    <a href="{% url 'edit_staff' pk=staff.pk %}" class="btn btn-xs btn-default">
+                                        Editar
+                                    </a>
+                                    
+                                {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}

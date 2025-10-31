@@ -1,0 +1,118 @@
+{% extends 'dashboard/dashboard_base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}Editar Personal - Tivy{% endblock %}
+
+{% block page_title %}Editar Personal{% endblock %}
+
+{% block breadcrumb %}
+    <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    <li><a href="{% url 'manage_staff' %}">Gestionar Personal</a></li>
+    <li class="active">Editar: {{ staff.name }}</li>
+{% endblock %}
+
+{% block content %}
+
+    {# Mostramos mensajes de error/éxito del form_valid #}
+    {% if messages %}
+        {% for message in messages %}
+             <div class="alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'info' %}alert-info{% elif message.tags == 'warning' %}alert-warning{% else %}alert-danger{% endif %} alert-dismissible">
+                <button class="close" data-dismiss="alert"><i class="pci-cross pci-circle"></i></button>
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="panel">
+        <div class="panel-heading">
+            <h3 class="panel-title">Editando a: {{ staff.name }}</h3>
+        </div>
+        <div class="panel-body">
+            
+            {# El 'action' vacío envía al mismo URL (la vista de UpdateView) #}
+            <form method="post" id="edit-staff-form">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                     <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+                     {{ form.name|add_class:"form-control" }}
+                     {% include 'includes/field_errors.html' with field=form.name %}
+                </div>
+
+                <div class="form-check mb-3">
+                    {{ form.give_access|add_class:"form-check-input"|attr:"id:id_give_access" }} 
+                    <label class="form-check-label" for="id_give_access">
+                        {{ form.give_access.label }}
+                    </label>
+                     {% include 'includes/field_errors.html' with field=form.give_access %}
+                </div>
+                
+                {# --- Campos Condicionales --- #}
+                {# La lógica 'get_initial' de la vista se encarga de mostrar esto #}
+                {# correctamente la primera vez. El JS se encarga de la interacción. #}
+                <div id="access-fields" style="display: {% if form.give_access.value %}block{% else %}none{% endif %};">
+                    <div class="mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+                        {{ form.email|add_class:"form-control" }}
+                        <small class="form-text text-muted">Si el usuario ya existe, se vinculará. Si no, se creará una cuenta.</small>
+                        {% include 'includes/field_errors.html' with field=form.email %}
+                    </div>
+                     <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.first_name.id_for_label }}" class="form-label">{{ form.first_name.label }}</label>
+                            {{ form.first_name|add_class:"form-control" }}
+                            {% include 'includes/field_errors.html' with field=form.first_name %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.last_name.id_for_label }}" class="form-label">{{ form.last_name.label }}</label>
+                            {{ form.last_name|add_class:"form-control" }}
+                            {% include 'includes/field_errors.html' with field=form.last_name %}
+                        </div>
+                    </div>
+                     <div class="mb-3">
+                        <label for="{{ form.phone_number.id_for_label }}" class="form-label">{{ form.phone_number.label }}</label>
+                        {{ form.phone_number|add_class:"form-control" }}
+                        {% include 'includes/field_errors.html' with field=form.phone_number %}
+                    </div>
+                </div>
+                 {# --- Fin Campos Condicionales --- #}
+
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                <a href="{% url 'manage_staff' %}" class="btn btn-default">Cancelar</a>
+            </form>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block page_script %}
+{# --- COPIA EXACTA del script de 'manage_staff.html' --- #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const giveAccessCheckbox = document.getElementById('id_give_access');
+    const accessFieldsDiv = document.getElementById('access-fields');
+    const accessInputs = accessFieldsDiv ? accessFieldsDiv.querySelectorAll('input') : []; 
+
+    function toggleAccessFields() {
+        if (!giveAccessCheckbox || !accessFieldsDiv) return;
+        
+        const isChecked = giveAccessCheckbox.checked;
+        accessFieldsDiv.style.display = isChecked ? 'block' : 'none';
+        
+        accessInputs.forEach(input => {
+            if (input.name !== 'phone_number'){
+                 input.required = isChecked;
+            } else {
+                 input.required = false; 
+            }
+        });
+    }
+
+    if(giveAccessCheckbox){
+        toggleAccessFields(); 
+        giveAccessCheckbox.addEventListener('change', toggleAccessFields);
+    }
+});
+</script>
+{% endblock %}

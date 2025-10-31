@@ -21,14 +21,20 @@ from .views import (
     check_customer_view,
     BusinessConfigView,
     ManageStaffView,
+    StaffMemberUpdateView,
     ServiceListView,    # <-- Nueva
     ServiceCreateView,  # <-- Nueva
     ServiceUpdateView,   # <-- Nueva
     ManageAvailabilityView,
+    AppointmentCalendarView,
     #API
     api_create_availability,
     api_create_time_off,
-    api_get_availability_events
+    api_get_availability_events,
+    api_update_event,
+    api_delete_event,
+    api_get_appointments,
+    api_update_appointment_status
 )
 
 urlpatterns = [
@@ -56,10 +62,13 @@ urlpatterns = [
          name='password_change_done'),
     path('dashboard/configuracion/', BusinessConfigView.as_view(), name='business_config'),
     path('dashboard/personal/', ManageStaffView.as_view(), name='manage_staff'),
+    path('personal/editar/<int:pk>/', StaffMemberUpdateView.as_view(), name='edit_staff'),
     path('dashboard/servicios/', ServiceListView.as_view(), name='service_list'),
     path('dashboard/servicios/nuevo/', ServiceCreateView.as_view(), name='service_create'),
     path('dashboard/servicios/<int:pk>/editar/', ServiceUpdateView.as_view(), name='service_update'),
     path('dashboard/disponibilidad/', ManageAvailabilityView.as_view(), name='manage_availability'),
+    path('dashboard/appointments/', AppointmentCalendarView.as_view(), name='appointment_calendar'),
+    
 
     #--------------Flujo de reserva------------------------------------------------------------------------#
     path('p/<slug:slug>/', BusinessPublicProfileView.as_view(), name='business_profile'),
@@ -74,4 +83,10 @@ urlpatterns = [
     path('api/availability/create/', api_create_availability, name='api_create_availability'),
     path('api/timeoff/create/', api_create_time_off, name='api_create_time_off'),
     path('api/availability/events/', api_get_availability_events, name='api_get_availability_events'),
+    path('api/events/update/', api_update_event, name='api_update_event'),
+    path('api/events/delete/', api_delete_event, name='api_delete_event'),
+    #api para obtener las citas filtradas por rol
+    path('api/appointments/get/', api_get_appointments, name='api_get_appointments'),
+    #actualizacion de estado de citas
+    path('api/appointment/status/update/', api_update_appointment_status, name='api_update_appointment_status'),
 ]

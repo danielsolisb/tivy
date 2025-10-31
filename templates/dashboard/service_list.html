@@ -11,6 +11,66 @@
 
 {% block content %}
 
+{# --- INICIO: CSS PARA TABLA RESPONSIVE EN MÓVIL --- #}
+<style>
+@media (max-width: 767px) {
+    /* Ocultamos los encabezados (headers) originales */
+    .table-responsive-cards thead {
+        display: none;
+    }
+
+    /* La fila (tr) se comporta como una tarjeta */
+    .table-responsive-cards tbody tr {
+        display: block;
+        width: 100%;
+        margin-bottom: 1.5rem;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    /* La celda (td) se apila verticalmente */
+    .table-responsive-cards tbody td {
+        display: block;
+        width: 100%;
+        text-align: right; /* Alinea el dato a la derecha */
+        padding-left: 50%; /* Deja espacio para el label */
+        padding-top: 12px;
+        padding-bottom: 12px;
+        position: relative;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .table-responsive-cards tbody td:last-child {
+        border-bottom: none; /* Sin borde en la última celda */
+    }
+
+    /* Creamos el "label" (Nombre, Tipo, etc.) usando el atributo data-label */
+    .table-responsive-cards tbody td::before {
+        content: attr(data-label); /* Esta es la magia */
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 45%;
+        text-align: left;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    /* Ajuste para el botón de "Acciones" */
+    .table-responsive-cards tbody td[data-label="Acciones"] {
+        text-align: center;
+        padding-left: 15px; /* Reset padding */
+    }
+    .table-responsive-cards tbody td[data-label="Acciones"]::before {
+        display: none; /* No queremos un label "Acciones:" */
+    }
+}
+</style>
+{# --- FIN: CSS PARA TABLA RESPONSIVE EN MÓVIL --- #}
+
+
     {% if messages %}
         {% for message in messages %}
              <div class="alert alert-success alert-dismissible">
@@ -32,7 +92,9 @@
         </div>
         <div class="panel-body">
             {% if services %}
-                <div class="table-responsive">
+                
+                {# --- MODIFICACIÓN 1: Se añadió la clase 'table-responsive-cards' --- #}
+                <div class="table-responsive table-responsive-cards">
                     <table class="table table-striped">
                         <thead>
                             <tr>
@@ -47,18 +109,19 @@
                         <tbody>
                             {% for service in services %}
                             <tr>
-                                <td>{{ service.name }}</td>
-                                <td>{{ service.duration }}</td>
-                                <td>${{ service.price|floatformat:2 }}</td>
-                                <td>{{ service.get_location_type_display }}</td>
-                                <td>
+                                {# --- MODIFICACIÓN 2: Se añadieron los atributos 'data-label' --- #}
+                                <td data-label="Nombre">{{ service.name }}</td>
+                                <td data-label="Duración">{{ service.duration }}</td>
+                                <td data-label="Precio">${{ service.price|floatformat:2 }}</td>
+                                <td data-label="Ubicación">{{ service.get_location_type_display }}</td>
+                                <td data-label="Activo">
                                     {% if service.is_active %}
                                         <span class="badge badge-success">Sí</span>
                                     {% else %}
                                         <span class="badge badge-danger">No</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td data-label="Acciones">
                                     <a href="{% url 'service_update' pk=service.pk %}" class="btn btn-xs btn-default">Editar</a>
                                     {# TODO: Añadir botón/lógica para desactivar/eliminar #}
                                 </td>

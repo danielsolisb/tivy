@@ -19,6 +19,9 @@ from urllib.parse import urlencode # Para generar el link de Google Calendar
 from django.utils.timezone import localtime # Para mostrar la hora local
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseForbidden
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q, Sum, Count
+from django.contrib import messages
 # from .forms import RegistrationForm # <-- Descomentaremos esto luego
 from django.urls import reverse_lazy # Para la redirección
 from .forms import UserProfileForm, BusinessConfigForm, StaffMemberForm, ServiceForm # <-- Importar el nuevo form
@@ -193,7 +196,8 @@ def login_view(request):
 
 #@login_required
 class DashboardView(LoginRequiredMixin, TemplateView):
-    template_name = "dashboard/dashboard_home.html" # New template name for the main dashboard page
+    # Apuntamos al mismo template, pero lo vamos a rediseñar
+    template_name = "dashboard/dashboard_home.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -202,40 +206,107 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         subscription = None
         plan = None
 
-        # Try to find the Business profile associated with the logged-in user
+        # --- Lógica de Negocio y Suscripción (EXISTENTE Y SIN CAMBIOS) ---
         try:
-            # Check if the user is the owner of a business
             business = Business.objects.get(user=user)
-            # Find the subscription for this business
             subscription = Subscription.objects.select_related('plan').get(business=business)
             plan = subscription.plan
         except Business.DoesNotExist:
-            # Handle case where user might be StaffMember or has no business yet
-            # For now, we raise 404 if no business owner profile found
-            # A better approach later might be to check StaffMember profile
             raise Http404("Perfil de negocio no encontrado para este usuario.")
         except Subscription.DoesNotExist:
-            # Handle case where business exists but has no subscription (shouldn't happen with current registration logic)
             messages.error(self.request, "Error: No se encontró una suscripción para tu negocio.")
-            # We can let it render the dashboard but show an error, or raise 404
-            pass # Let it continue, but 'subscription' and 'plan' will be None
+            pass 
 
-        # --- Subscription Status Check ---
         allowed_statuses = ['ACTIVE', 'TRIAL', 'DEMO']
         is_subscription_valid = subscription and subscription.status in allowed_statuses
 
         if not is_subscription_valid:
-            # If subscription is not valid, maybe render a different template or add a flag
-            self.template_name = "dashboard/dashboard_restricted.html" # Use a restricted template
+            self.template_name = "dashboard/dashboard_restricted.html" # Plantilla restringida
             messages.warning(self.request, "Tu suscripción no está activa. Acceso limitado.")
 
         context['business'] = business
         context['subscription'] = subscription
         context['plan'] = plan
-        context['is_subscription_valid'] = is_subscription_valid # Pass validity flag to template
+        context['is_subscription_valid'] = is_subscription_valid
+        
+        # --- INICIO DE NUEVA LÓGICA: DATOS DEL DASHBOARD ---
+        # Solo calculamos esto si la suscripción es válida
+        if is_subscription_valid and business:
+            
+            # --- Definir Fechas ---
+            today = timezone.localdate()
+            now = timezone.now()
+            seven_days_ago = today - timedelta(days=6)
+            thirty_days_ago = today - timedelta(days=29)
+
+            # --- 1. KPIs (Tarjetas Superiores) ---
+            
+            # Citas e Ingresos de HOY
+            today_appointments = Appointment.objects.filter(
+                business=business, 
+                start_time__date=today
+            )
+            context['kpi_total_appointments_today'] = today_appointments.exclude(status='CANCELED').count()
+            
+            context['kpi_revenue_today'] = today_appointments.exclude(status='CANCELED').aggregate(
+                total=Sum('service__price')
+            )['total'] or 0
+            
+            # Nuevos Clientes (Últimos 7 días)
+            context['kpi_new_clients_week'] = Customer.objects.filter(
+                business=business, 
+                created_at__date__gte=seven_days_ago
+            ).count()
+
+            # --- 2. Lista de Próximas Citas ---
+            context['upcoming_appointments'] = Appointment.objects.filter(
+                business=business, 
+                start_time__gte=now, 
+                status='SCHEDULED'
+            ).select_related('service', 'customer', 'staff_member').order_by('start_time')[:3] # Próximas 3
+
+            # --- 3. Datos para Gráficos ---
+
+            # Gráfico de Barras: Rendimiento Semanal (Citas completadas)
+            daily_counts_qs = Appointment.objects.filter(
+                business=business, 
+                start_time__date__gte=seven_days_ago, 
+                status='COMPLETED'
+            ).values('start_time__date').annotate(count=Count('id')).order_by('start_time__date')
+            
+            # Formatear para Chart.js
+            date_map = {item['start_time__date']: item['count'] for item in daily_counts_qs}
+            chart_labels_weekly = []
+            chart_data_weekly = []
+            for i in range(7):
+                date = seven_days_ago + timedelta(days=i)
+                chart_labels_weekly.append(date.strftime('%a %d')) # Ej: "Lun 27"
+                chart_data_weekly.append(date_map.get(date, 0))
+
+            context['chart_weekly_labels'] = json.dumps(chart_labels_weekly)
+            context['chart_weekly_data'] = json.dumps(chart_data_weekly)
+
+            # Gráfico de Pastel: Top 5 Servicios (Últimos 30 días)
+            top_services_qs = Appointment.objects.filter(
+                business=business, 
+                start_time__date__gte=thirty_days_ago
+            ).values('service__name').annotate(count=Count('id')).order_by('-count')[:5]
+
+            context['chart_top_services_labels'] = json.dumps([item['service__name'] for item in top_services_qs])
+            context['chart_top_services_data'] = json.dumps([item['count'] for item in top_services_qs])
+
+            # Gráfico de Pastel: Top 5 Staff (Últimos 30 días)
+            top_staff_qs = Appointment.objects.filter(
+                business=business, 
+                start_time__date__gte=thirty_days_ago
+            ).values('staff_member__name').annotate(count=Count('id')).order_by('-count')[:5]
+
+            context['chart_top_staff_labels'] = json.dumps([item['staff_member__name'] for item in top_staff_qs])
+            context['chart_top_staff_data'] = json.dumps([item['count'] for item in top_staff_qs])
+
+        # --- FIN DE NUEVA LÓGICA ---
 
         return context
-
 class UserProfileView(LoginRequiredMixin, UpdateView):
     """
     Permite al usuario logueado editar su propio perfil (nombre, apellido).
@@ -426,6 +497,132 @@ class ManageStaffView(LoginRequiredMixin, FormMixin, ListView):
          messages.error(self.request, "Por favor, corrige los errores en el formulario.")
          return self.render_to_response(self.get_context_data(form=form))
 
+class StaffMemberUpdateView(LoginRequiredMixin, UpdateView):
+    model = StaffMember
+    form_class = StaffMemberForm
+    template_name = 'dashboard/edit_staff.html'  # Crearemos este template
+    success_url = reverse_lazy('manage_staff')   # A dónde ir después de guardar
+    context_object_name = 'staff'              # Nombre del objeto en el template
+    
+    def get_object(self, queryset=None):
+        """
+        Asegura que el staff a editar pertenezca
+        al negocio del usuario logueado.
+        """
+        obj = super().get_object(queryset)
+        try:
+            business = self.request.user.business_profile
+            if obj.business != business:
+                raise Http404("No tienes permiso para editar este personal.")
+        except Business.DoesNotExist:
+            raise Http404("Perfil de negocio no encontrado.")
+        return obj
+
+    def get_initial(self):
+        """
+        Pre-rellena el formulario con los datos actuales
+        del StaffMember y del User (si existe).
+        """
+        initial = super().get_initial()
+        staff = self.get_object()
+        
+        # Datos del StaffMember
+        initial['name'] = staff.name
+        
+        # Datos del User (si está vinculado)
+        if staff.user:
+            initial['give_access'] = True
+            initial['email'] = staff.user.email
+            initial['first_name'] = staff.user.first_name
+            initial['last_name'] = staff.user.last_name
+            initial['phone_number'] = staff.user.phone_number
+        else:
+            initial['give_access'] = False
+            
+        return initial
+
+    def form_valid(self, form):
+        """
+        Lógica para guardar el formulario.
+        Esto es una adaptación de tu lógica de 'crear'.
+        """
+        staff = self.get_object() # El StaffMember que estamos editando
+        business = self.request.user.business_profile
+        
+        # Datos del formulario
+        name = form.cleaned_data['name']
+        give_access = form.cleaned_data['give_access']
+        email = form.cleaned_data.get('email', '').strip()
+        first_name = form.cleaned_data.get('first_name', '').strip()
+        last_name = form.cleaned_data.get('last_name', '').strip()
+        phone_number = form.cleaned_data.get('phone_number', '').strip()
+
+        # Actualizar el nombre del staff
+        staff.name = name
+
+        if give_access:
+            # --- 1. QUIERE ACCESO ---
+            if not all([email, first_name, last_name]):
+                messages.error(self.request, "Si das acceso, el Correo, Nombre y Apellido son obligatorios.")
+                return self.form_invalid(form)
+
+            # Buscar si el email ya existe en otro usuario
+            target_user = User.objects.filter(email=email).first()
+            
+            if staff.user:
+                # --- 1a. YA TENÍA ACCESO (Actualizar datos de User) ---
+                
+                # Si cambió el email a uno que YA EXISTE y no es él mismo
+                if staff.user.email != email and target_user:
+                     messages.error(self.request, f"El email {email} ya pertenece a otro usuario.")
+                     return self.form_invalid(form)
+                
+                # Actualizar datos del usuario existente
+                staff.user.email = email
+                staff.user.username = email # Mantener username sincronizado
+                staff.user.first_name = first_name
+                staff.user.last_name = last_name
+                staff.user.phone_number = phone_number
+                staff.user.save()
+                messages.success(self.request, f"Se actualizaron los datos de usuario para {staff.name}.")
+            
+            else:
+                # --- 1b. NO TENÍA ACCESO (Crear o vincular User) ---
+                if target_user:
+                    # Vincular a usuario existente
+                    if StaffMember.objects.filter(business=business, user=target_user).exists():
+                        messages.error(self.request, f"El usuario {email} ya está asignado a otro perfil de personal.")
+                        return self.form_invalid(form)
+                    staff.user = target_user
+                    messages.info(self.request, f"Se vinculó al usuario existente {email} a {staff.name}.")
+                else:
+                    # Crear nuevo usuario (lógica de tu ManageStaffView.form_valid)
+                    temp_password = User.objects.make_random_password()
+                    print(f"DEBUG: Contraseña temporal para {email}: {temp_password}") # ¡BORRAR EN PRODUCCIÓN!
+                    user = User.objects.create_user(
+                        username=email, email=email,
+                        first_name=first_name, last_name=last_name,
+                        phone_number=phone_number, password=temp_password
+                    )
+                    staff.user = user
+                    messages.info(self.request, f"Se creó y vinculó una nueva cuenta para {email}.")
+                    # TODO: Enviar email
+        
+        else:
+            # --- 2. NO QUIERE ACCESO (o se lo quita) ---
+            if staff.user:
+                # Si tenía un usuario, lo desvinculamos. No borramos el usuario.
+                messages.warning(self.request, f"Se ha desvinculado la cuenta de usuario de {staff.name}. El usuario no ha sido borrado.")
+                staff.user = None
+
+        staff.save()
+        messages.success(self.request, f"Se ha actualizado el perfil de '{staff.name}'.")
+        return redirect(self.success_url)
+    
+    def form_invalid(self, form):
+        messages.error(self.request, "Por favor, corrige los errores en el formulario.")
+        return super().form_invalid(form)
+
 class ServiceListView(LoginRequiredMixin, ListView):
     """ Muestra la lista de servicios del negocio logueado. """
     model = Service
@@ -541,6 +738,38 @@ class ManageAvailabilityView(LoginRequiredMixin, TemplateView):
 
         # Ya no pasamos 'calendar_events_json'
         return context
+
+class AppointmentCalendarView(LoginRequiredMixin, TemplateView):
+    """
+    Muestra la página principal del calendario que contendrá las citas.
+    """
+    template_name = 'dashboard/appointment_calendar.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        
+        # Determinar el contexto del negocio, ya sea como dueño o como staff
+        try:
+            # Opción 1: El usuario es el dueño del negocio
+            context['business'] = user.business_profile
+        except Business.DoesNotExist:
+            try:
+                # Opción 2: El usuario es un miembro del staff
+                staff_member = user.staff_profiles.first()
+                if staff_member:
+                    context['business'] = staff_member.business
+                else:
+                    messages.error(self.request, "No estás asociado a ningún negocio.")
+                    context['business'] = None
+            except Exception as e:
+                messages.error(self.request, f"Error al cargar tu perfil: {e}")
+                context['business'] = None
+        
+        context['page_title'] = "Calendario de Citas"
+        return context
+
+
 
 #API para calendarios y disponibilidad
 @login_required
@@ -705,8 +934,14 @@ def api_get_availability_events(request):
                 'title': 'Disponible',
                 'start': block.start_time.isoformat(),
                 'end': block.end_time.isoformat(),
-                'display': 'background',
-                'color': '#d1e7dd',
+                
+                # --- INICIO DE LA CORRECCIÓN ---
+                # 'display': 'background',  <-- ELIMINADO O COMENTADO
+                'color': '#198754',         # <-- AÑADIR (Verde sólido de Bootstrap)
+                'borderColor': '#146c43',  # <-- AÑADIR (Borde más oscuro)
+                'textColor': '#ffffff',     # <-- AÑADIR (Texto blanco)
+                # --- FIN DE LA CORRECCIÓN ---
+
                 'extendedProps': {
                     'type': 'availability',
                     'editable_by_staff': block.staff_can_edit
@@ -735,6 +970,243 @@ def api_get_availability_events(request):
     except Exception as e:
         print(f"Error en api_get_availability_events: {e}")
         return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def api_update_event(request):
+    """
+    Endpoint de API para ACTUALIZAR un bloque existente (ya sea Horario o Tiempo Libre).
+    """
+    try:
+        event_id_str = request.POST.get('event_id')
+        start_dt_str = request.POST.get('start_time')
+        end_dt_str = request.POST.get('end_time')
+
+        if not all([event_id_str, start_dt_str, end_dt_str]):
+            return JsonResponse({'success': False, 'error': 'Faltan datos requeridos.'}, status=400)
+
+        # 1. Parsear el ID del evento para saber el tipo y el PK
+        try:
+            event_type, pk = event_id_str.split('_')
+            pk = int(pk)
+        except (ValueError, IndexError):
+            return JsonResponse({'success': False, 'error': 'ID de evento no válido.'}, status=400)
+
+        # 2. Obtener el objeto correcto y validar permisos
+        model = None
+        if event_type == 'avail':
+            model = AvailabilityBlock
+        elif event_type == 'off':
+            model = TimeOffBlock
+        else:
+            return JsonResponse({'success': False, 'error': 'Tipo de evento desconocido.'}, status=400)
+
+        try:
+            event_obj = model.objects.get(pk=pk)
+        except ObjectDoesNotExist:
+             return JsonResponse({'success': False, 'error': 'El bloque no fue encontrado.'}, status=404)
+
+
+        # Permiso: Solo el dueño del negocio puede editar
+        if event_obj.staff_member.business.user != request.user:
+            return JsonResponse({'success': False, 'error': 'No tienes permiso para editar este bloque.'}, status=403)
+
+        # 3. Actualizar el objeto
+        event_obj.start_time = timezone.make_aware(datetime.fromisoformat(start_dt_str))
+        event_obj.end_time = timezone.make_aware(datetime.fromisoformat(end_dt_str))
+
+        if event_type == 'avail':
+            # Actualiza campos específicos de AvailabilityBlock
+            event_obj.staff_can_edit = request.POST.get('staff_can_edit') == 'on'
+        elif event_type == 'off':
+            # Actualiza campos específicos de TimeOffBlock
+            event_obj.reason = request.POST.get('reason', '')
+
+        event_obj.save()
+
+        return JsonResponse({'success': True, 'message': 'Bloque actualizado correctamente.'})
+
+    except Exception as e:
+        # Log del error en el servidor para depuración
+        print(f"Error en api_update_event: {e}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def api_delete_event(request):
+    """
+    Endpoint de API para ELIMINAR un bloque existente.
+    """
+    try:
+        event_id_str = request.POST.get('event_id')
+        if not event_id_str:
+            return JsonResponse({'success': False, 'error': 'ID de evento no proporcionado.'}, status=400)
+
+        # Parsear ID y obtener el objeto (lógica similar a la de actualización)
+        try:
+            event_type, pk = event_id_str.split('_')
+            pk = int(pk)
+        except (ValueError, IndexError):
+            return JsonResponse({'success': False, 'error': 'ID de evento no válido.'}, status=400)
+
+        model = AvailabilityBlock if event_type == 'avail' else TimeOffBlock if event_type == 'off' else None
+        if not model:
+            return JsonResponse({'success': False, 'error': 'Tipo de evento desconocido.'}, status=400)
+
+        try:
+            event_obj = model.objects.get(pk=pk)
+        except ObjectDoesNotExist:
+             return JsonResponse({'success': False, 'error': 'El bloque no fue encontrado.'}, status=404)
+
+        # Permiso: Solo el dueño del negocio puede eliminar
+        if event_obj.staff_member.business.user != request.user:
+            return JsonResponse({'success': False, 'error': 'No tienes permiso para eliminar este bloque.'}, status=403)
+
+        # Eliminar el objeto
+        event_obj.delete()
+
+        return JsonResponse({'success': True, 'message': 'Bloque eliminado correctamente.'})
+
+    except Exception as e:
+        print(f"Error en api_delete_event: {e}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+# --- API PARA OBTENER LAS CITAS FILTRADAS POR ROL ---
+@login_required
+def api_get_appointments(request):
+    """
+    Endpoint de API para que FullCalendar obtenga las CITAS (Appointments)
+    filtradas por el rol del usuario (Dueño vs Staff).
+    
+    CORREGIDO:
+    - Compara los estados con 'COMPLETED' y 'CANCELED' (del modelo)
+      en lugar de 'COMPLETADA' y 'CANCELADA'.
+    """
+    user = request.user
+    
+    start_str = request.GET.get('start')
+    end_str = request.GET.get('end')
+
+    if not start_str or not end_str:
+        return JsonResponse({'error': 'Faltan parámetros de fecha.'}, status=400)
+
+    try:
+        naive_start_date = datetime.fromisoformat(start_str)
+        naive_end_date = datetime.fromisoformat(end_str)
+        
+        start_date = timezone.make_aware(naive_start_date)
+        end_date = timezone.make_aware(naive_end_date)
+        
+    except ValueError:
+        return JsonResponse({'error': 'Formato de fecha inválido.'}, status=400)
+
+    base_queryset = Appointment.objects.none()
+
+    if hasattr(user, 'business_profile'):
+        business = user.business_profile
+        base_queryset = Appointment.objects.filter(
+            business=business,
+            start_time__range=[start_date, end_date]
+        )
+    elif hasattr(user, 'staff_profiles') and user.staff_profiles.exists():
+        staff_member = user.staff_profiles.first()
+        base_queryset = Appointment.objects.filter(
+            staff_member=staff_member,
+            start_time__range=[start_date, end_date]
+        )
+    
+    appointments = base_queryset.select_related(
+        'service', 
+        'customer',
+        'staff_member'
+    ).order_by('start_time')
+
+    events = []
+    
+    for app in appointments:
+        title = f"{app.service.name}\n"
+        title += f"Cliente: {app.customer.first_name} {app.customer.last_name}\n"
+        
+        if hasattr(user, 'business_profile'):
+             title += f"Staff: {app.staff_member.name}"
+
+        # --- LÓGICA DE COLOR POR ESTADO (CORREGIDA) ---
+        color = '#007bff' # Azul (Agendada - SCHEDULED)
+        if app.status == 'COMPLETED':   # <-- CORREGIDO
+            color = '#198754' # Verde
+        elif app.status == 'CANCELED':  # <-- CORREGIDO
+            color = '#dc3545' # Rojo
+
+        events.append({
+            'id': app.pk,
+            'title': title,
+            'start': app.start_time.isoformat(),
+            'end': app.end_time.isoformat(),
+            'color': color, 
+            'borderColor': color,
+            'extendedProps': {
+                'service_name': app.service.name,
+                'client_name': f"{app.customer.first_name} {app.customer.last_name}",
+                'client_phone': app.customer.phone_number or "N/A",
+                'staff_name': app.staff_member.name,
+                'price': f"${app.service.price}",
+                'status_display': app.get_status_display(),
+                'raw_status': app.status 
+            }
+        })
+
+    return JsonResponse(events, safe=False)
+
+
+#actualizacion de estado de las citas
+@login_required
+@require_POST
+def api_update_appointment_status(request):
+    """
+    Endpoint de API para actualizar el estado de una cita.
+    """
+    try:
+        data = json.loads(request.body)
+        appointment_id = data.get('appointment_id')
+        new_status = data.get('status')
+
+        if not appointment_id or not new_status:
+            return JsonResponse({'success': False, 'error': 'Faltan datos.'}, status=400)
+
+        # Validar que el estado sea uno de los permitidos
+        valid_statuses = [status[0] for status in Appointment.STATUS_CHOICES]
+        if new_status not in valid_statuses:
+            return JsonResponse({'success': False, 'error': 'Estado no válido.'}, status=400)
+
+        # Obtener la cita
+        appointment = get_object_or_404(Appointment, pk=appointment_id)
+        
+        # --- Validación de Permisos ---
+        user = request.user
+        is_owner = hasattr(user, 'business_profile') and appointment.business == user.business_profile
+        
+        # --- CORRECCIÓN APLICADA AQUÍ ---
+        # 1. Comprobar si el usuario logueado TIENE un perfil de staff
+        is_staff = hasattr(user, 'staff_profile')
+        # 2. Si es staff, comprobar si SU perfil de staff es IGUAL al staff de la cita
+        is_assigned_staff = is_staff and (user.staff_profile == appointment.staff_member)
+        # --- FIN DE LA CORRECCIÓN ---
+
+        if not is_owner and not is_assigned_staff:
+            return JsonResponse({'success': False, 'error': 'No tienes permiso para modificar esta cita.'}, status=403)
+        
+        # Actualizar el estado y guardar
+        appointment.status = new_status
+        appointment.save()
+
+        return JsonResponse({'success': True, 'message': 'Estado de la cita actualizado.'})
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Datos JSON mal formados.'}, status=400)
+    except Exception as e:
+        print(f"Error en api_update_appointment_status: {e}")
+        # Devuelve el error real que estabas viendo
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 #------------------------------------------------------------------------------#
 #Primera pantalla donde se muestran los servicios y logo de la empresa.

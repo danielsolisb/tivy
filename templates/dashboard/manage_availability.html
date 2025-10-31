@@ -200,20 +200,18 @@
 
     {# --- Lógica del Calendario --- #}
     <script>
-        // Envolvemos todo en DOMContentLoaded para asegurar que el HTML esté cargado
         document.addEventListener('DOMContentLoaded', function() {
             
             // --- Referencias a Elementos ---
-            const eventModal = $('#eventModal'); // jQuery para el modal de Nifty/Bootstrap
+            const eventModal = $('#eventModal');
             const calendarEl = document.getElementById('calendar');
-            let calendar; // Variable global para el calendario
+            let calendar; 
             
             const selectedStaffId = "{{ selected_staff.id }}";
-            
             const staffSelect = document.getElementById('staff-select');
-            const addEventButton = document.getElementById('btn-add-event');
             
-            // Elementos del Modal (los buscamos *dentro* de DOMContentLoaded)
+            // --- Elementos del Modal ---
+            const eventForm = document.getElementById('eventForm');
             const radioHorario = document.getElementById('type_horario');
             const radioBloqueo = document.getElementById('type_bloqueo');
             const horarioFields = document.getElementById('horario-fields');
@@ -221,9 +219,11 @@
             const repeatCheckbox = document.getElementById('modal_repeat');
             const recurrenceFields = document.getElementById('recurrence-fields');
             const repeatUntilInput = document.getElementById('modal_repeat_until');
-            const eventForm = document.getElementById('eventForm'); // Obtenemos el formulario
+            const deleteButton = document.getElementById('btn-delete-event');
+            const addEventButton = document.getElementById('btn-add-event'); // Asegúrate que esta referencia esté
 
-            // --- Lógica del Selector de Staff ---
+
+            // --- Lógica del Selector de Staff (Tu código original) ---
             if (staffSelect) {
                 staffSelect.addEventListener('change', function() {
                     const selectedStaffId = this.value;
@@ -231,12 +231,12 @@
                 });
             }
 
-            // --- Lógica de campos condicionales del Modal ---
+            // --- Lógica de campos condicionales del Modal (Tu código original) ---
             function toggleRecurrenceFields() {
                 if(repeatCheckbox && recurrenceFields && repeatUntilInput) {
                     const isRepeating = repeatCheckbox.checked;
                     recurrenceFields.style.display = isRepeating ? 'block' : 'none';
-                    repeatUntilInput.required = isRepeating; // Hacer requerido si se repite
+                    repeatUntilInput.required = isRepeating; 
                 }
             }
 
@@ -246,64 +246,151 @@
                 if (radioHorario.checked) {
                     horarioFields.style.display = 'block';
                     bloqueoFields.style.display = 'none';
-                    toggleRecurrenceFields(); // Chequear si la recurrencia debe mostrarse
-                } else { // radioBloqueo está chequeado
+                    toggleRecurrenceFields(); 
+                } else { 
                     horarioFields.style.display = 'none';
                     bloqueoFields.style.display = 'block';
                     if(recurrenceFields) recurrenceFields.style.display = 'none';
                 }
             }
             
-            // Asignar eventos solo si los elementos existen
             if (radioHorario) radioHorario.addEventListener('change', toggleModalFields);
             if (radioBloqueo) radioBloqueo.addEventListener('change', toggleModalFields);
             if (repeatCheckbox) repeatCheckbox.addEventListener('change', toggleRecurrenceFields);
 
-            // --- Inicialización de FullCalendar ---
+            // =================================================================
+            // --- NUEVA LÓGICA: DETECCIÓN DE MÓVIL (Añade esto aquí) ---
+            // =================================================================
+            
+            // Determina la vista y el 'header' según el tamaño de la pantalla
+            let initialCalendarView = 'timeGridWeek'; // Vista por defecto (escritorio)
+            let calendarHeader = {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            };
+
+            if (window.innerWidth < 768) { // 768px es un breakpoint estándar para móviles
+                initialCalendarView = 'timeGridDay'; // Cambia a vista de DÍA
+                calendarHeader = {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'timeGridDay,timeGridWeek' // Simplificamos los botones
+                };
+            }
+            // =================================================================
+            // --- FIN DE LA NUEVA LÓGICA ---
+            // =================================================================
+
+            // --- INICIALIZACIÓN DE FULLCALENDAR (CÓDIGO COMPLETO) ---
             if (calendarEl && typeof FullCalendar !== 'undefined' && selectedStaffId) { 
                 try {
                     calendar = new FullCalendar.Calendar(calendarEl, {
-                        initialView: 'timeGridWeek',
-                        locale: 'es', 
-                        headerToolbar: {
-                             left: 'prev,next today',
-                             center: 'title',
-                             right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                        },
-                        // Obtenemos eventos desde el API endpoint
-                        events: "{% url 'api_get_availability_events' %}?staff_id=" + selectedStaffId,
+                        // --- OPCIONES ORIGINALES (QUE OMITÍ POR ERROR) ---
+                        // --- OPCIONES MODIFICADAS ---
+                        initialView: initialCalendarView, // <--- USA LA VARIABLE
+                        headerToolbar: calendarHeader,      // <--- USA LA VARIABLE
                         
-                        selectable: true,
-                        editable: true, 
-                        slotMinTime: '07:00:00',
-                        slotMaxTime: '21:00:00',
+                        // --- OPCIONES ORIGINALES (QUE OMITÍ POR ERROR) ---
+                        locale: 'es', 
+                        timeZone: 'America/Guayaquil',
+                        slotMinTime: '06:00:00',
+                        slotMaxTime: '22:00:00',
                         allDaySlot: false,
                         height: 'auto', 
+                        
+                        // --- LÓGICA DE EVENTOS ---
+                        events: "{% url 'api_get_availability_events' %}?staff_id=" + selectedStaffId,
+                        selectable: true,
+                        editable: true,
 
+                        // 1. FUNCIÓN `select` (para crear nuevos eventos)
                         select: function(info) {
                             if (eventForm) eventForm.reset();
                             $('#modal_event_id').val(''); 
                             $('#eventModalLabel').text('Añadir Disponibilidad');
-                            $('#btn-delete-event').hide();
+                            $(deleteButton).hide(); // Usamos jQuery para asegurar compatibilidad
                             
                             $('#modal_start_time').val(info.startStr.slice(0, 16));
                             $('#modal_end_time').val(info.endStr.slice(0, 16));
                             
-                            // Asegurarnos que los campos condicionales se reseteen
+                            radioHorario.checked = true;
                             toggleModalFields();
                             
                             calendar.unselect();
                             eventModal.modal('show');
                         },
+
+                        // 2. FUNCIÓN `eventClick` (para editar eventos existentes)
                         eventClick: function(info) {
-                            // TODO: Implementar lógica de Edición/Borrado
-                            alert(`Lógica de Edición/Borrado aún no implementada para ${info.event.id}`);
+                            info.jsEvent.preventDefault(); 
+                            
+                            const event = info.event;
+                            const props = event.extendedProps;
+
+                            if (eventForm) eventForm.reset();
+                            $('#modal_event_id').val(event.id); 
+                            $('#eventModalLabel').text('Editar Bloque');
+                            $(deleteButton).show(); // Usamos jQuery
+
+                            // Formatear fechas para el input datetime-local
+                            const startStr = event.startStr.slice(0, 16);
+                            const endStr = event.endStr ? event.endStr.slice(0, 16) : ''; // Asegurarse que endStr exista
+                            $('#modal_start_time').val(startStr);
+                            $('#modal_end_time').val(endStr);
+
+                            if (props.type === 'availability') {
+                                radioHorario.checked = true;
+                                $('#modal_staff_can_edit').prop('checked', props.editable_by_staff);
+                            } else if (props.type === 'time_off') {
+                                radioBloqueo.checked = true;
+                                $('#modal_reason').val(event.title);
+                            }
+                            
+                            toggleModalFields();
+                            eventModal.modal('show');
                         },
+                        
+                        // 3. FUNCIÓN `eventChange` (para arrastrar y soltar)
+                        eventChange: function(info) {
+                            const event = info.event;
+                            const startStr = event.start.toISOString();
+                            const endStr = event.end ? event.end.toISOString() : null;
+
+                            const updateUrl = "{% url 'api_update_event' %}";
+                            const formData = new FormData();
+                            formData.append('event_id', event.id);
+                            formData.append('start_time', startStr);
+                            formData.append('end_time', endStr);
+                            
+                            if (event.extendedProps.type === 'time_off') {
+                                formData.append('reason', event.title);
+                            }
+
+                            fetch(updateUrl, {
+                                method: 'POST',
+                                body: formData,
+                                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (!data.success) {
+                                    alert('Error al actualizar: ' + data.error);
+                                    info.revert(); 
+                                } else {
+                                    // Notificación de éxito
+                                    $.niftyNoty({ type: 'success', message: 'Bloque actualizado.', container: 'floating', timer: 3000 });
+                                }
+                            }).catch(() => {
+                                alert('Error de red al actualizar el evento.');
+                                info.revert();
+                            });
+                        }
                     });
                     calendar.render();
                 } catch(e) {
-                     console.error("Error al inicializar FullCalendar:", e);
-                     calendarEl.innerHTML = "<div class='alert alert-danger'>Error al procesar los datos del calendario.</div>";
+                    console.error("Error al inicializar FullCalendar:", e);
+                    calendarEl.innerHTML = "<div class='alert alert-danger'>Error al procesar los datos del calendario.</div>";
                 }
             } else if (calendarEl) {
                 let errorMsg = "Error: La librería FullCalendar no se cargó correctamente.";
@@ -313,74 +400,126 @@
                 calendarEl.innerHTML = `<div class='alert alert-danger'>${errorMsg}</div>`;
             }
 
-             // --- Lógica del Botón "Añadir Horario / Bloqueo" ---
-             if(addEventButton){
-                 addEventButton.addEventListener('click', function(){
+            // --- Lógica del Botón "Añadir Horario / Bloqueo" (Tu código original) ---
+            if(addEventButton){
+                addEventButton.addEventListener('click', function(){
                     if (eventForm) eventForm.reset();
                     $('#modal_event_id').val('');
                     $('#eventModalLabel').text('Añadir Disponibilidad');
-                    $('#btn-delete-event').hide();
+                    $(deleteButton).hide();
                     
                     $('#modal_start_time').val('');
                     $('#modal_end_time').val('');
                     
-                    toggleModalFields(); // Resetear campos condicionales
+                    radioHorario.checked = true; // Por defecto
+                    toggleModalFields(); 
                     
                     eventModal.modal('show');
-                 });
-             }
+                });
+            }
 
-             // --- Lógica de Envío del Formulario (AJAX) ---
-             if (eventForm) {
-                 eventForm.addEventListener('submit', function(e) {
-                     e.preventDefault(); 
-                     
-                     const formData = new FormData(e.target);
-                     const eventType = formData.get('event_type');
-                     let apiUrl = (eventType === 'availability') ? "{% url 'api_create_availability' %}" : "{% url 'api_create_time_off' %}";
+            // --- Lógica de Envío del Formulario (AJAX - MODIFICADA) ---
+            if (eventForm) {
+                eventForm.addEventListener('submit', function(e) {
+                    e.preventDefault(); 
+                    
+                    const formData = new FormData(e.target);
+                    const eventId = formData.get('event_id');
+                    const isUpdate = eventId && eventId.length > 0;
+                    
+                    let apiUrl;
+                    if (isUpdate) {
+                        apiUrl = "{% url 'api_update_event' %}";
+                    } else {
+                        const eventType = formData.get('event_type');
+                        apiUrl = (eventType === 'availability') ? "{% url 'api_create_availability' %}" : "{% url 'api_create_time_off' %}";
+                    }
 
-                     formData.append('staff_id', selectedStaffId);
-                     // CSRF Token (ya no es necesario si se usa el header 'X-CSRFToken')
-                     // formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                    formData.append('staff_id', selectedStaffId);
+                    const submitButton = $(e.target).find('button[type="submit"]');
+                    submitButton.prop('disabled', true).text('Guardando...');
 
-                     const submitButton = $(e.target).find('button[type="submit"]');
-                     submitButton.prop('disabled', true).text('Guardando...');
-
-                     fetch(apiUrl, {
-                         method: 'POST',
-                         body: formData,
-                         headers: { 
-                             'X-CSRFToken': '{{ csrf_token }}' // Django necesita esto para POST vía fetch
-                         }
-                     })
-                     .then(response => {
-                         if (!response.ok) {
-                             // Si la respuesta no es 2xx, la convertimos en un error
-                             return response.json().then(errData => {
-                                 throw new Error(errData.error || 'Error del servidor');
-                             });
-                         }
-                         return response.json();
-                     })
-                     .then(data => {
-                         submitButton.prop('disabled', false).text('Guardar Cambios');
-                         if (data.success) {
-                             eventModal.modal('hide'); 
-                             if (calendar) {
+                    fetch(apiUrl, {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(errData => {
+                                throw new Error(errData.error || 'Error del servidor');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        submitButton.prop('disabled', false).text('Guardar Cambios');
+                        if (data.success) {
+                            eventModal.modal('hide'); 
+                            if (calendar) {
                                 calendar.refetchEvents(); // Recargar eventos
-                             }
-                             alert(data.message || '¡Guardado con éxito!'); 
-                         } else {
-                             alert('Error: ' + data.error);
-                         }
-                     })
-                     .catch(error => {
-                         submitButton.prop('disabled', false).text('Guardar Cambios');
-                         console.error('Error en fetch:', error);
-                         alert('Error de red o del servidor: ' + error.message);
-                     });
-                 });
-             }
+                            }
+                            // Usamos la notificación de Nifty que ya tienes
+                            $.niftyNoty({ type: 'success', message: data.message || '¡Guardado con éxito!', container: 'floating', timer: 5000 });
+                        } else {
+                            alert('Error: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        submitButton.prop('disabled', false).text('Guardar Cambios');
+                        console.error('Error en fetch:', error);
+                        alert('Error de red o del servidor: ' + error.message);
+                    });
+                });
+            }
+
+            // --- LÓGICA DEL BOTÓN DE BORRADO (NUEVA) ---
+            if (deleteButton) {
+                deleteButton.addEventListener('click', function() {
+                    const eventId = $('#modal_event_id').val();
+                    if (!eventId) return;
+
+                    if (!confirm('¿Estás seguro de que quieres eliminar este bloque? Esta acción no se puede deshacer.')) {
+                        return;
+                    }
+                    
+                    const formData = new FormData();
+                    formData.append('event_id', eventId);
+                    
+                    // Deshabilitar botones mientras se borra
+                    $(deleteButton).prop('disabled', true).text('Eliminando...');
+                    $(eventForm).find('button[type="submit"]').prop('disabled', true);
+
+
+                    fetch("{% url 'api_delete_event' %}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Reactivar botones
+                        $(deleteButton).prop('disabled', false).text('Eliminar');
+                        $(eventForm).find('button[type="submit"]').prop('disabled', false);
+
+                        if (data.success) {
+                            eventModal.modal('hide');
+                            calendar.refetchEvents();
+                            $.niftyNoty({ type: 'success', message: 'Bloque eliminado con éxito.', container: 'floating', timer: 5000 });
+                        } else {
+                            alert('Error al eliminar: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        $(deleteButton).prop('disabled', false).text('Eliminar');
+                        $(eventForm).find('button[type="submit"]').prop('disabled', false);
+                        alert('Error de red al intentar eliminar: ' + error.message);
+                    });
+                });
+            }
+
         });
     </script>
 {% endblock %}

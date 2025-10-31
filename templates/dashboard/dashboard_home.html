@@ -1,75 +1,301 @@
-{# Hereda de la nueva base del dashboard #}
 {% extends 'dashboard/dashboard_base.html' %}
 {% load static %}
+{% load humanize %} {# Para formatear números, ej: $1,850.00 #}
 
-{# Define el título específico de esta página #}
 {% block title %}Inicio Dashboard - Tivy{% endblock %}
-
-{# Define el título que aparece en la cabecera de la página #}
 {% block page_title %}Dashboard{% endblock %}
 
-{# Define el breadcrumb para esta página #}
 {% block breadcrumb %}
     <li class="active">Inicio</li>
 {% endblock %}
 
-{# Define el contenido principal de esta página #}
+{% block page_head %}
+    {# --- Librería para Gráficos --- #}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+
+    {# --- Estilos personalizados para el Dashboard (Sin cambios) --- #}
+    <style>
+        .kpi-card {
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 20px;
+            background-color: #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: none;
+        }
+        .kpi-card .panel-body {
+            padding: 25px;
+            position: relative;
+            z-index: 2;
+        }
+        .kpi-card .kpi-icon {
+            font-size: 60px;
+            color: rgba(0,0,0,0.08);
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+        .kpi-card .kpi-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        .kpi-card .kpi-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #777;
+            margin-bottom: 5px;
+        }
+        
+        /* Colores de fondo para las tarjetas */
+        .kpi-card.bg-info-light { background-color: #f3f9ff; }
+        .kpi-card.bg-success-light { background-color: #f2fbf6; }
+        .kpi-card.bg-warning-light { background-color: #fffaf2; }
+
+        /* Lista de Próximas Citas */
+        .upcoming-appointment {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .upcoming-appointment:last-child {
+            border-bottom: none;
+        }
+        .upcoming-appointment .time {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #333;
+            width: 80px;
+        }
+        .upcoming-appointment .details {
+            flex: 1;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        .upcoming-appointment .details span {
+            display: block;
+            color: #666;
+        }
+    </style>
+{% endblock %}
+
+
 {% block content %}
 
-    {# --- Mensajes (si los hay) --- #}
+    {# --- Mensajes (Sin Cambios) --- #}
     {% if messages %}
         {% for message in messages %}
              <div class="alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'warning' %}alert-warning{% else %}alert-danger{% endif %}">{{ message }}</div>
         {% endfor %}
     {% endif %}
 
-    {# --- Información de Suscripción --- #}
+    {# --- Información de Suscripción (Sin Cambios) --- #}
     {% if subscription and plan %}
         <div class="alert alert-info" role="alert">
             <strong>Plan:</strong> {{ plan.name }} | 
             <strong>Estado:</strong> {{ subscription.get_status_display }}
             {% if subscription.status == 'TRIAL' and subscription.trial_end_date %}
                 | Tu prueba gratuita termina el {{ subscription.trial_end_date|date:"d/m/Y" }}.
-            {% elif subscription.status == 'ACTIVE' and subscription.current_period_end %}
-                | Tu suscripción se renueva el {{ subscription.current_period_end|date:"d/m/Y" }}.
             {% endif %}
-            {# TODO: Add link to manage subscription #}
-        </div>
-    {% elif is_subscription_valid %} {# Mostrar solo si no hay subscripción pero debería #}
-         <div class="alert alert-danger" role="alert">
-            Error al cargar la información de tu suscripción. Contacta soporte.
         </div>
     {% endif %}
 
-    {# --- Contenido Principal (Solo si la suscripción es válida) --- #}
+    {# --- Contenido Principal (DISEÑO TOTALMENTE NUEVO) --- #}
     {% if is_subscription_valid %}
-        {# Puedes añadir aquí tarjetas o widgets como en el ejemplo de Nifty #}
+        
+        <h4 class="text-thin">Resumen de Hoy ({{ "now"|date:"l, d M" }})</h4>
+        
         <div class="row">
-            <div class="col-md-12">
-                <div class="panel">
-                    <div class="panel-heading">
-                        <h3 class="panel-title">Bienvenido, {{ request.user.first_name }}</h3>
-                    </div>
+            <div class="col-md-4">
+                <div class="panel kpi-card bg-info-light">
                     <div class="panel-body">
-                        <p>Desde aquí podrás gestionar todos los aspectos de tu negocio en Tivy.</p>
-                        <p>Selecciona una opción del menú de la izquierda para empezar.</p>
-                        {# Aquí podrías añadir accesos directos o estadísticas clave #}
+                        {# --- ICONO CORREGIDO --- #}
+                        <i class="demo-pli-calendar-4 kpi-icon"></i>
+                        <p class="title">Citas de Hoy</p>
+                        <h2 class="kpi-value">{{ kpi_total_appointments_today }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="panel kpi-card bg-success-light">
+                    <div class="panel-body">
+                        {# --- ICONO CORREGIDO --- #}
+                        <i class="demo-pli-coin kpi-icon"></i>
+                        <p class="title">Ingresos Estimados Hoy</p>
+                        <h2 class="kpi-value">${{ kpi_revenue_today|floatformat:2|intcomma }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="panel kpi-card bg-warning-light">
+                    <div class="panel-body">
+                        {# --- ICONO CORREGIDO --- #}
+                        <i class="demo-pli-add-user kpi-icon"></i>
+                        <p class="title">Nuevos Clientes (Semana)</p>
+                        <h2 class="kpi-value">{{ kpi_new_clients_week }}</h2>
                     </div>
                 </div>
             </div>
         </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="panel">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">Rendimiento Semanal (Citas Completadas)</h3>
+                    </div>
+                    <div class="panel-body">
+                        <canvas id="chartWeeklyPerformance" height="150"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="panel">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">Próximas Citas</h3>
+                    </div>
+                    <div class="panel-body">
+                        {% for appt in upcoming_appointments %}
+                            <div class="upcoming-appointment">
+                                <div class="time">{{ appt.start_time|time:"H:i A" }}</div>
+                                <div classs="details">
+                                    <strong>{{ appt.customer.first_name }} {{ appt.customer.last_name }}</strong>
+                                    <span>{{ appt.service.name }}</span>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <p class="text-muted">No tienes más citas programadas para hoy.</p>
+                        {% endfor %}
+                        <a href="{% url 'appointment_calendar' %}" class="btn btn-primary btn-block mar-top">Ver Calendario Completo</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="panel">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">Top 5 Servicios (Últimos 30 días)</h3>
+                    </div>
+                    <div class="panel-body" style="height: 350px;">
+                        <canvas id="chartTopServices"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="panel">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">Top 5 Staff (Últimos 30 días)</h3>
+                    </div>
+                    <div class="panel-body" style="height: 350px;">
+                        <canvas id="chartTopStaff"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
     {% else %}
-        {# Contenido mostrado cuando la suscripción NO es válida #}
+        {# Contenido restringido (SIN CAMBIOS) #}
         <div class="alert alert-warning">
              <p>Por favor, revisa el estado de tu suscripción para continuar usando Tivy.</p>
-             {# TODO: Add link to manage subscription page #}
              <a href="#" class="btn btn-warning disabled">Gestionar Suscripción (Próximamente)</a>
         </div>
     {% endif %}
 
 {% endblock %}
 
-{# Bloque opcional para scripts específicos de esta página #}
+
 {% block page_script %}
-    {# <script src="{% static 'js/demo/dashboard_specific_scripts.js' %}"></script> #}
+    {# --- Scripts para inicializar los Gráficos (Sin Cambios) --- #}
+    {% if is_subscription_valid %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // Colores para los gráficos
+            const chartColors = [
+                '#3498db', '#2ecc71', '#e74c3c', '#f1c40f', '#9b59b6', 
+                '#34495e', '#1abc9c', '#e67e22', '#95a5a6'
+            ];
+
+            // 1. Gráfico de Barras: Rendimiento Semanal
+            const ctxWeekly = document.getElementById('chartWeeklyPerformance');
+            if (ctxWeekly) {
+                new Chart(ctxWeekly.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: {{ chart_weekly_labels|safe }},
+                        datasets: [{
+                            label: 'Citas Completadas',
+                            data: {{ chart_weekly_data|safe }},
+                            backgroundColor: 'rgba(52, 152, 219, 0.7)',
+                            borderColor: 'rgba(52, 152, 219, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+
+            // 2. Gráfico de Pastel: Top Servicios
+            const ctxServices = document.getElementById('chartTopServices');
+            if (ctxServices) {
+                new Chart(ctxServices.getContext('2d'), {
+                    type: 'pie',
+                    data: {
+                        labels: {{ chart_top_services_labels|safe }},
+                        datasets: [{
+                            label: 'Citas',
+                            data: {{ chart_top_services_data|safe }},
+                            backgroundColor: chartColors,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right' }
+                        }
+                    }
+                });
+            }
+
+            // 3. Gráfico de Pastel: Top Staff
+            const ctxStaff = document.getElementById('chartTopStaff');
+            if (ctxStaff) {
+                new Chart(ctxStaff.getContext('2d'), {
+                    type: 'pie',
+                    data: {
+                        labels: {{ chart_top_staff_labels|safe }},
+                        datasets: [{
+                            label: 'Citas',
+                            data: {{ chart_top_staff_data|safe }},
+                            backgroundColor: chartColors.slice().reverse(), // Colores invertidos
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right' }
+                        }
+                    }
+                });
+            }
+
+        });
+    </script>
+    {% endif %}
 {% endblock %}

@@ -13,6 +13,9 @@
 {% block page_head %}
     {# --- CSS para Tagify vía CDN --- #}
     <link href="https://unpkg.com/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css" />
+
+    {# --- NUEVO: JS para generar QR (Añadido) --- #}
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -33,10 +36,53 @@
                     <h3 class="panel-title">Edita la Información de tu Negocio</h3>
                 </div>
                 <div class="panel-body">
+
+                    {# --- INICIO: NUEVO BLOQUE DE ENLACE PÚBLICO Y QR (CORREGIDO) --- #}
+                    <div class="panel" style="background-color: #f9f9f9; border: 1px solid #eee;">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">Tu Página de Citas</h3>
+                        </div>
+                        <div class="panel-body">
+                            <p>Este es el enlace único que puedes compartir con tus clientes para que agenden citas:</p>
+                            
+                            {% comment %}
+                                1. Usamos el nombre 'business_profile' de tu urls.py
+                                2. 'object' es la variable estándar de UpdateView para el negocio
+                            {% endcomment %}
+                            {% url 'business_profile' slug=object.slug as booking_url %}
+
+                            {% comment %}
+                                3. CORRECCIÓN: Construimos la URL directamente aquí.
+                                   Ya no usamos la etiqueta falsa 'capturefull'.
+                            {% endcomment %}
+                            <div class="input-group mar-btm">
+                                <input type="text" id="public-booking-url" class="form-control" 
+                                       value="{{ request.scheme }}://{{ request.get_host }}{{ booking_url }}" readonly>
+                                <span class="input-group-btn">
+                                    <button class="btn btn-primary" type="button" id="copy-url-btn">Copiar</button>
+                                </span>
+                            </div>
+
+                            <p class="text-center mar-top">O comparte tu código QR:</p>
+                            
+                            {% comment %}
+                                4. CORRECCIÓN: Pasamos la URL construida directamente
+                                   al atributo 'data-url'.
+                            {% endcomment %}
+                            <div id="booking-qr-code" 
+                                 data-url="{{ request.scheme }}://{{ request.get_host }}{{ booking_url }}" 
+                                 style="width: 150px; height: 150px; margin: 10px auto; border: 5px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                 </div>
+                        </div>
+                    </div>
+                    <hr>
+                    {# --- FIN: NUEVO BLOQUE DE ENLACE PÚBLICO Y QR --- #}
+
+
                     <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
 
-                        {# --- Campos del Formulario --- #}
+                        {# --- Campos del Formulario (SIN CAMBIOS) --- #}
                         <div class="mb-3">
                              <label for="{{ form.display_name.id_for_label }}" class="form-label">{{ form.display_name.label }}</label>
                              {{ form.display_name|add_class:"form-control" }}
@@ -45,8 +91,8 @@
 
                         <div class="mb-3">
                              <label for="{{ form.photo.id_for_label }}" class="form-label">{{ form.photo.label }} (Logo)</label>
-                             {% if business.photo %}
-                             <p><img src="{{ business.photo.url }}" alt="Logo actual" style="max-height: 80px; margin-bottom: 10px;"></p>
+                             {% if object.photo %} {# Usamos 'object' de UpdateView #}
+                             <p><img src="{{ object.photo.url }}" alt="Logo actual" style="max-height: 80px; margin-bottom: 10px;"></p>
                              {% endif %}
                              {{ form.photo|add_class:"form-control" }}
                              {% include 'includes/field_errors.html' with field=form.photo %}
@@ -73,7 +119,6 @@
                              {% include 'includes/field_errors.html' with field=form.address %}
                         </div>
 
-                        {# --- NUEVOS CAMPOS CITY Y COUNTRY --- #}
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.city.id_for_label }}" class="form-label">{{ form.city.label }}</label>
@@ -86,7 +131,6 @@
                                 {% include 'includes/field_errors.html' with field=form.country %}
                             </div>
                         </div>
-                        {# --- FIN NUEVOS CAMPOS --- #}
 
                         <div class="mb-3">
                              <label for="{{ form.service_delivery_type.id_for_label }}" class="form-label">{{ form.service_delivery_type.label }}</label>
@@ -94,8 +138,7 @@
                              {% include 'includes/field_errors.html' with field=form.service_delivery_type %}
                         </div>
 
-                        {# --- Campos Condicionales para Domicilio --- #}
-                        <div id="domicilio-fields" style="display: {% if business.service_delivery_type == 'LOCAL' %}none{% else %}block{% endif %};">
+                        <div id="domicilio-fields" style="display: {% if object.service_delivery_type == 'LOCAL' %}none{% else %}block{% endif %};">
                             <div class="mb-3">
                                 <label for="{{ form.travel_buffer.id_for_label }}" class="form-label">{{ form.travel_buffer.label }}</label>
                                 {{ form.travel_buffer|add_class:"form-control" }}
@@ -103,15 +146,13 @@
                                 {% include 'includes/field_errors.html' with field=form.travel_buffer %}
                             </div>
 
-                             {# --- Campo de Texto para Zonas (será reemplazado por Tagify) --- #}
                              <div class="mb-3">
                                 <label for="{{ form.service_zones_text.id_for_label }}" class="form-label">{{ form.service_zones_text.label }}</label>
-                                {{ form.service_zones_text }} {# Renderiza el CharField/Textarea #}
+                                {{ form.service_zones_text }} 
                                 <small class="form-text text-muted">{{ form.service_zones_text.help_text }}</small>
                                 {% include 'includes/field_errors.html' with field=form.service_zones_text %}
                              </div>
                         </div>
-                        {# --- Fin Campos Condicionales --- #}
 
                         <hr>
                         <h4>Personalización Visual</h4>
@@ -119,12 +160,12 @@
                          <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.primary_color.id_for_label }}" class="form-label">{{ form.primary_color.label }}</label>
-                                {{ form.primary_color|add_class:"form-control form-control-color" }} {# Clase específica para input color #}
+                                {{ form.primary_color|add_class:"form-control form-control-color" }}
                                 {% include 'includes/field_errors.html' with field=form.primary_color %}
                             </div>
                              <div class="col-md-6 mb-3">
                                 <label for="{{ form.secondary_color.id_for_label }}" class="form-label">{{ form.secondary_color.label }}</label>
-                                {{ form.secondary_color|add_class:"form-control form-control-color" }} {# Clase específica para input color #}
+                                {{ form.secondary_color|add_class:"form-control form-control-color" }}
                                 {% include 'includes/field_errors.html' with field=form.secondary_color %}
                             </div>
                         </div>
@@ -145,13 +186,13 @@
     <script src="https://unpkg.com/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // --- Inicializar Tagify ---
-            var input = document.getElementById('id_service_zones_tags'); // Usa el ID que le dimos al widget
+            
+            // --- Inicializar Tagify (CORREGIDO) ---
+            // Apuntamos al ID que Django genera para 'service_zones_text'
+            var input = document.getElementById('{{ form.service_zones_text.id_for_label }}'); 
             if (input) {
-                // Configuración básica de Tagify
                 new Tagify(input, {
-                    delimiters: ",", // Separador para crear tags
-                    // Puedes añadir más opciones de Tagify aquí si quieres
+                    delimiters: ",", 
                 });
             }
 
@@ -160,7 +201,7 @@
             const domicilioFieldsDiv = document.getElementById('domicilio-fields');
 
             function toggleDomicilioFields() {
-                if (!deliveryTypeSelect || !domicilioFieldsDiv) return; // Salir si los elementos no existen
+                if (!deliveryTypeSelect || !domicilioFieldsDiv) return;
                 if (deliveryTypeSelect.value === 'LOCAL') {
                     domicilioFieldsDiv.style.display = 'none';
                 } else {
@@ -171,6 +212,52 @@
                  toggleDomicilioFields(); 
                  deliveryTypeSelect.addEventListener('change', toggleDomicilioFields);
             }
+
+            // --- INICIO: NUEVA LÓGICA PARA QR Y BOTÓN "COPIAR" ---
+            
+            // 1. Generar el Código QR
+            const qrCodeEl = document.getElementById('booking-qr-code');
+            
+            if (qrCodeEl && typeof QRCode !== 'undefined') {
+                const bookingUrl = qrCodeEl.getAttribute('data-url');
+                if (bookingUrl) {
+                    new QRCode(qrCodeEl, {
+                        text: bookingUrl,
+                        width: 150,
+                        height: 150,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+                }
+            }
+
+            // 2. Lógica del botón "Copiar"
+            const copyBtn = document.getElementById('copy-url-btn');
+            const urlInput = document.getElementById('public-booking-url');
+            
+            if (copyBtn && urlInput) {
+                copyBtn.addEventListener('click', function() {
+                    urlInput.select();
+                    try {
+                        // Intentamos usar la API moderna de Portapapeles
+                        navigator.clipboard.writeText(urlInput.value).then(function() {
+                            copyBtn.innerText = '¡Copiado!';
+                            setTimeout(function() { copyBtn.innerText = 'Copiar'; }, 2000);
+                        }, function(err) {
+                            // Fallback para navegadores (incluyendo http)
+                            document.execCommand('copy');
+                            copyBtn.innerText = '¡Copiado!';
+                            setTimeout(function() { copyBtn.innerText = 'Copiar'; }, 2000);
+                        });
+                    } catch (err) {
+                        alert('No se pudo copiar el enlace. Cópialo manualmente.');
+                    }
+                    window.getSelection().removeAllRanges();
+                });
+            }
+            // --- FIN: NUEVA LÓGICA ---
+
         });
     </script>
 {% endblock %}

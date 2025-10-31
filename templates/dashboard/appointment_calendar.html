@@ -1,0 +1,209 @@
+{% extends 'dashboard/dashboard_base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - Tivy{% endblock %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumb %}
+    <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    <li class="active">Citas</li>
+{% endblock %}
+
+{% block page_head %}
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css' rel='stylesheet' />
+    
+    <style>
+        #calendar {
+            max-width: 1100px;
+            margin: 20px auto;
+            padding: 1.5rem;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        /* Ajuste para que el título del evento se vea bien */
+        .fc-event-main-frame {
+            white-space: pre-wrap; /* Permite saltos de línea en el título */
+            font-size: 0.8rem;
+            line-height: 1.3;
+        }
+    </style>
+{% endblock %}
+
+
+{% block content %}
+
+    <div id="calendar-container" class="panel">
+        <div class="panel-body">
+            <div id="calendar"></div>
+        </div>
+    </div>
+
+   <div class="modal fade" id="appointmentDetailModal" tabindex="-1" role="dialog" aria-labelledby="appointmentDetailLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form id="appointmentDetailForm">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="appointmentDetailLabel">Detalles de la Cita</h4>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="modal_appointment_id" name="appointment_id">
+
+                    <h5 id="modal_service_name" class="text-primary" style="font-size: 1.5rem; margin-top: 0;"></h5>
+                    <hr>
+                    <p><strong><i class="fa fa-user-circle-o fa-fw"></i> Cliente:</strong> <span id="modal_client_name"></span></p>
+                    <p><strong><i class="fa fa-phone fa-fw"></i> Teléfono:</strong> <span id="modal_client_phone"></span></p>
+                    <p><strong><i class="fa fa-user-md fa-fw"></i> Staff:</strong> <span id="modal_staff_name"></span></p>
+                    <p><strong><i class="fa fa-money fa-fw"></i> Precio:</strong> <span id="modal_price"></span></p>
+                    
+                    <hr>
+                    <div class="form-group">
+                        <label for="modal_status_select" class="control-label">Actualizar Estado:</label>
+                        <select id="modal_status_select" name="status" class="form-control">
+                            <option value="SCHEDULED">Agendada</option>
+                            <option value="COMPLETED">Completada</option>
+                            <option value="CANCELED">Cancelada</option>
+                        </select>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Estado</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block page_script %}
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            const calendarEl = document.getElementById('calendar');
+            const detailModal = $('#appointmentDetailModal');
+            const detailForm = document.getElementById('appointmentDetailForm');
+            let calendar; // Variable para acceder al calendario
+
+            // =================================================================
+            // --- NUEVA LÓGICA: DETECCIÓN DE MÓVIL (Añade esto aquí) ---
+            // =================================================================
+            
+            // Determina la vista y el 'header' según el tamaño de la pantalla
+            let initialCalendarView = 'timeGridWeek'; // Vista por defecto (escritorio)
+            let calendarHeader = {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            };
+
+            if (window.innerWidth < 768) { // Breakpoint estándar para móviles
+                initialCalendarView = 'timeGridDay'; // Cambia a vista de DÍA
+                calendarHeader = {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridDay' // Simplificamos botones (mes y día)
+                };
+            }
+            // =================================================================
+            // --- FIN DE LA NUEVA LÓGICA ---
+            // =================================================================
+
+            if (calendarEl && typeof FullCalendar !== 'undefined') {
+                try {
+                    calendar = new FullCalendar.Calendar(calendarEl, {
+                        // --- OPCIONES MODIFICADAS ---
+                        initialView: initialCalendarView, // <--- USA LA VARIABLE
+                        headerToolbar: calendarHeader,      // <--- USA LA VARIABLE
+
+                        // --- OPCIONES ORIGINALES ---
+                        locale: 'es', 
+                        timeZone: 'America/Guayaquil',
+                        slotMinTime: '06:00:00',
+                        slotMaxTime: '22:00:00',
+                        allDaySlot: false,
+                        height: 'auto', 
+                        
+                        events: "{% url 'api_get_appointments' %}",
+                        
+                        // --- eventClick (MODIFICADO) ---
+                        eventClick: function(info) {
+                            info.jsEvent.preventDefault(); 
+                            
+                            const props = info.event.extendedProps;
+                            
+                            // Llenar el modal de detalles
+                            $('#modal_appointment_id').val(info.event.id); // <-- NUEVO
+                            $('#modal_service_name').text(props.service_name);
+                            $('#modal_client_name').text(props.client_name);
+                            $('#modal_client_phone').text(props.client_phone);
+                            $('#modal_staff_name').text(props.staff_name);
+                            $('#modal_price').text(props.price);
+                            
+                            // Seleccionar el estado correcto en el dropdown
+                            $('#modal_status_select').val(props.raw_status); // <-- NUEVO
+                            
+                            detailModal.modal('show');
+                        },
+                    });
+                    
+                    calendar.render();
+
+                } catch(e) {
+                    console.error("Error al inicializar FullCalendar:", e);
+                    calendarEl.innerHTML = "<div class='alert alert-danger'>Error al cargar el calendario.</div>";
+                }
+            }
+
+            // --- LÓGICA DE GUARDAR ESTADO (NUEVA) ---
+            if (detailForm) {
+                detailForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const submitButton = $(detailForm).find('button[type="submit"]');
+                    submitButton.prop('disabled', true).text('Guardando...');
+
+                    const formData = new FormData(detailForm);
+                    const data = {
+                        appointment_id: formData.get('appointment_id'),
+                        status: formData.get('status')
+                    };
+
+                    fetch("{% url 'api_update_appointment_status' %}", {
+                        method: 'POST',
+                        body: JSON.stringify(data),
+                        headers: { 
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        submitButton.prop('disabled', false).text('Guardar Estado');
+                        if (data.success) {
+                            detailModal.modal('hide');
+                            if (calendar) {
+                                calendar.refetchEvents(); // Recargar el calendario
+                            }
+                            $.niftyNoty({ type: 'success', message: data.message, container: 'floating', timer: 5000 });
+                        } else {
+                            alert('Error: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        submitButton.prop('disabled', false).text('Guardar Estado');
+                        console.error('Error en fetch:', error);
+                        alert('Error de red al guardar: ' + error.message);
+                    });
+                });
+            }
+
+        });
+    </script>
+{% endblock %}
