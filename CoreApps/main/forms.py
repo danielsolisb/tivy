@@ -65,17 +65,11 @@ class StaffMemberForm(forms.Form):
     Modificado para aceptar 'instance' de UpdateView sin ser ModelForm.
     """
 
-    # --- NUEVO MÉTODO __init__ ---
     def __init__(self, *args, **kwargs):
-        # 1. Sacamos 'instance' de los argumentos. 
-        #    UpdateView (editar) lo pasa, pero forms.Form (base) no lo espera.
-        #    Al sacarlo aquí, evitamos el TypeError.
         self.instance = kwargs.pop('instance', None)
-        
-        # 2. Llamamos al __init__ original de forms.Form (que ya no verá 'instance')
         super().__init__(*args, **kwargs)
     
-    # --- TUS CAMPOS (con el duplicado de email eliminado) ---
+    # --- Campos existentes (sin cambios) ---
     name = forms.CharField(
         label="Nombre del Recurso o Empleado",
         max_length=150,
@@ -87,13 +81,19 @@ class StaffMemberForm(forms.Form):
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
     
-    # --- ERROR CORREGIDO: Solo un campo de email ---
+    # --- INICIO DEL NUEVO CAMPO ---
+    photo = forms.ImageField(
+        label="Foto del Recurso (Opcional)",
+        required=False,
+        widget=forms.ClearableFileInput(attrs={'class': 'form-control'})
+    )
+    # --- FIN DEL NUEVO CAMPO ---
+    
     email = forms.EmailField(
         label="Correo Electrónico del Empleado",
-        required=False, # Solo requerido si give_access es True (validado en la vista)
+        required=False, 
         widget=forms.EmailInput(attrs={'class': 'form-control'})
     )
-    
     first_name = forms.CharField(
         label="Nombre del Empleado",
         required=False,
@@ -112,7 +112,7 @@ class StaffMemberForm(forms.Form):
         max_length=20,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09xxxxxxxx'})
     )
-
+    
 class ServiceForm(forms.ModelForm):
     """
     Formulario para crear y editar Servicios.

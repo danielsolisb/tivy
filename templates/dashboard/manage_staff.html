@@ -7,72 +7,31 @@
 {% block page_title %}Gestionar Personal{% endblock %}
 
 {% block breadcrumb %}
-    <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    <li><a href="{% url 'dashboard' %}\">Dashboard</a></li>
     <li class="active">Gestionar Personal</li>
 {% endblock %}
 
 
 {% block content %}
 
-{# --- INICIO: CSS PARA TABLA RESPONSIVE EN MÓVIL --- #}
+{# --- CSS PARA TABLA RESPONSIVE (Sin Cambios) --- #}
 <style>
 @media (max-width: 767px) {
-    /* Ocultamos los encabezados (headers) originales */
-    .table-responsive-cards thead {
-        display: none;
-    }
-
-    /* La fila (tr) se comporta como una tarjeta */
-    .table-responsive-cards tbody tr {
-        display: block;
-        width: 100%;
-        margin-bottom: 1.5rem; /* Aumentado para más espacio */
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-
-    /* La celda (td) se apila verticalmente */
-    .table-responsive-cards tbody td {
-        display: block;
-        width: 100%;
-        text-align: right; /* Alinea el dato a la derecha */
-        padding-left: 50%; /* Deja espacio para el label */
-        padding-top: 12px;
-        padding-bottom: 12px;
-        position: relative;
-        border-bottom: 1px solid #eee;
-    }
+    .table-responsive-cards thead { display: none; }
+    .table-responsive-cards tbody tr { display: block; width: 100%; margin-bottom: 1.5rem; border: 1px solid #ddd; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .table-responsive-cards tbody td { display: block; width: 100%; text-align: right; padding-left: 50%; padding-top: 12px; padding-bottom: 12px; position: relative; border-bottom: 1px solid #eee; }
+    .table-responsive-cards tbody td:last-child { border-bottom: none; }
+    .table-responsive-cards tbody td::before { content: attr(data-label); position: absolute; left: 15px; top: 50%; transform: translateY(-50%); width: 45%; text-align: left; font-weight: bold; color: #333; }
+    .table-responsive-cards tbody td[data-label="Acciones"] { text-align: center; padding-left: 15px; }
+    .table-responsive-cards tbody td[data-label="Acciones"]::before { display: none; }
     
-    .table-responsive-cards tbody td:last-child {
-        border-bottom: none; /* Sin borde en la última celda */
-    }
-
-    /* Creamos el "label" (Nombre, Tipo, etc.) usando el atributo data-label */
-    .table-responsive-cards tbody td::before {
-        content: attr(data-label); /* Esta es la magia */
-        position: absolute;
-        left: 15px; /* Más padding */
-        top: 50%;
-        transform: translateY(-50%);
-        width: 45%;
-        text-align: left;
-        font-weight: bold;
-        color: #333;
-    }
-    
-    /* Ajuste para el botón de "Acciones" */
-    .table-responsive-cards tbody td[data-label="Acciones"] {
-        text-align: center;
-        padding-left: 15px; /* Reset padding */
-    }
-    .table-responsive-cards tbody td[data-label="Acciones"]::before {
-        display: none; /* No queremos un label "Acciones:" */
+    /* Estilo para la nueva foto en móvil */
+    .table-responsive-cards tbody td[data-label="Foto"] img {
+        max-width: 40px; /* Hacer la imagen pequeña en la tarjeta */
+        border-radius: 50%;
     }
 }
 </style>
-{# --- FIN: CSS PARA TABLA RESPONSIVE EN MÓVIL --- #}
-
 
     {% if messages %}
         {% for message in messages %}
@@ -89,12 +48,12 @@
         </div>
         <div class="panel-body">
             {% if staff_list %}
-            
-                {# --- MODIFICACIÓN 1: Se añadió la clase 'table-responsive-cards' --- #}
                 <div class="table-responsive table-responsive-cards">
                     <table class="table table-striped">
                         <thead>
                             <tr>
+                                {# --- CAMBIO 1: Nueva columna "Foto" --- #}
+                                <th style="width: 60px;">Foto</th>
                                 <th>Nombre</th>
                                 <th>Tipo</th>
                                 <th>Estado</th>
@@ -104,7 +63,10 @@
                         <tbody>
                             {% for staff in staff_list %}
                             <tr>
-                                {# --- MODIFICACIÓN 2: Se añadieron los atributos 'data-label' --- #}
+                                {# --- CAMBIO 1: Usamos la propiedad get_photo_url --- #}
+                                <td data-label="Foto">
+                                    <img src="{{ staff.get_photo_url }}" alt="{{ staff.name }}" class="img-circle img-sm">
+                                </td>
                                 <td data-label="Nombre">{{ staff.name }}</td>
                                 <td data-label="Tipo">
                                     {% if staff.user %}
@@ -122,19 +84,13 @@
                                 </td>
                                 <td data-label="Acciones">
                                     {% if staff.user == request.user %}
-        
-                                    <button class="btn btn-xs btn-default" 
-                                            disabled="disabled" 
-                                            title="Para editar tus datos personales, ve a 'Configuración Negocio' o 'Mi Perfil'.">
+                                    <button class="btn btn-xs btn-default" disabled="disabled" title="Para editar tus datos personales, ve a 'Configuración Negocio' o 'Mi Perfil'.">
                                         Editar (Tú)
                                     </button>
-                                    
                                 {% else %}
-                                
                                     <a href="{% url 'edit_staff' pk=staff.pk %}" class="btn btn-xs btn-default">
                                         Editar
                                     </a>
-                                    
                                 {% endif %}
                                 </td>
                             </tr>
@@ -155,7 +111,8 @@
                 <h3 class="panel-title">Añadir Nuevo Personal o Recurso</h3>
             </div>
             <div class="panel-body">
-                <form method="post" id="add-staff-form">
+                {# --- CAMBIO: Añadimos enctype para la subida de fotos --- #}
+                <form method="post" enctype="multipart/form-data" id="add-staff-form">
                     {% csrf_token %}
                     
                     <div class="mb-3">
@@ -165,7 +122,6 @@
                     </div>
 
                     <div class="form-check mb-3">
-                        {# Usamos el ID explícito que le dimos al widget #}
                         {{ form.give_access|add_class:"form-check-input"|attr:"id:id_give_access" }} 
                         <label class="form-check-label" for="id_give_access">
                             {{ form.give_access.label }}
@@ -173,7 +129,18 @@
                          {% include 'includes/field_errors.html' with field=form.give_access %}
                     </div>
                     
-                    {# --- Campos Condicionales Actualizados --- #}
+                    {# --- CAMBIO 2: Nuevo DIV para el campo 'photo' --- #}
+                    <div id="resource-fields" style="display: none;">
+                        <div class="mb-3">
+                            <label for="{{ form.photo.id_for_label }}" class="form-label">{{ form.photo.label }}</label>
+                            {{ form.photo|add_class:"form-control" }}
+                            <small class="form-text text-muted">Sube una foto si este recurso es una "Silla" o "Cabina".</small>
+                            {% include 'includes/field_errors.html' with field=form.photo %}
+                        </div>
+                    </div>
+                    {# --- Fin Nuevo DIV --- #}
+
+                    {# --- Campos Condicionales (Sin Cambios) --- #}
                     <div id="access-fields" style="display: {% if form.give_access.value %}block{% else %}none{% endif %};">
                         <div class="mb-3">
                             <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
@@ -199,7 +166,6 @@
                             {% include 'includes/field_errors.html' with field=form.phone_number %}
                         </div>
                     </div>
-                     {# --- Fin Campos Condicionales --- #}
 
                     <button type="submit" class="btn btn-primary">Añadir</button>
                 </form>
@@ -216,24 +182,30 @@
 {% block page_script %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const giveAccessCheckbox = document.getElementById('id_give_access'); // Usamos el ID que pusimos
+    const giveAccessCheckbox = document.getElementById('id_give_access');
     const accessFieldsDiv = document.getElementById('access-fields');
-    // Seleccionamos todos los inputs dentro del div condicional
     const accessInputs = accessFieldsDiv ? accessFieldsDiv.querySelectorAll('input') : []; 
+    
+    {# --- CAMBIO 3: Nueva referencia al campo de foto --- #}
+    const resourceFieldsDiv = document.getElementById('resource-fields');
 
     function toggleAccessFields() {
-        if (!giveAccessCheckbox || !accessFieldsDiv) return;
+        if (!giveAccessCheckbox || !accessFieldsDiv || !resourceFieldsDiv) return;
         
         const isChecked = giveAccessCheckbox.checked;
+        
+        // Mostrar campos de Acceso (email, nombre) SI está marcado
         accessFieldsDiv.style.display = isChecked ? 'block' : 'none';
         
-        // Hacemos que los campos dentro sean requeridos solo si el checkbox está marcado
+        // --- CAMBIO 3: Mostrar campo de Foto SI NO está marcado (es un recurso) ---
+        resourceFieldsDiv.style.display = isChecked ? 'none' : 'block';
+        
+        // Lógica de campos requeridos (sin cambios)
         accessInputs.forEach(input => {
-            // Asumimos que todos excepto el teléfono son requeridos si se da acceso
             if (input.name !== 'phone_number'){
                  input.required = isChecked;
             } else {
-                 input.required = false; // Teléfono sigue siendo opcional
+                 input.required = false; 
             }
         });
     }

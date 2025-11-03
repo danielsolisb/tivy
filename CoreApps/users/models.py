@@ -4,6 +4,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from datetime import timedelta
 from django.utils.text import slugify
+from django.templatetags.static import static
 
 # -----------------------------------------------------------------------------
 # Modelo #1: El Usuario Base para Autenticación (SIN CAMBIOS)
@@ -124,6 +125,34 @@ class StaffMember(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.business.display_name})"
+    
+    @property
+    def get_photo_url(self):
+        """
+        Esta propiedad inteligente devuelve la URL de la foto correcta.
+        - Si el staff es un Usuario, devuelve la foto de perfil del Usuario.
+        - Si el staff es un Recurso (sin usuario), devuelve su propia foto.
+        """
+        default_avatar = static('images/default-profile.png') # Ruta de tu 'profile_form.html'
+
+        # 1. Si el staff es un Usuario (está vinculado a un User)
+        if self.user:
+            # Si el usuario tiene una foto de perfil, úsala
+            if self.user.profile_image:
+                return self.user.profile_image.url
+            # Si es usuario pero no tiene foto, usa el avatar por defecto
+            else:
+                return default_avatar
+
+        # 2. Si es un Recurso (no-usuario) Y SÍ tiene foto
+        elif not self.user and self.photo:
+            return self.photo.url
+
+        # 3. Si es un Recurso (no-usuario) y NO tiene foto
+        else:
+            # Opcionalmente, podrías cambiar esto a un ícono de "silla" o "recurso"
+            # Por ahora, el avatar por defecto funciona bien.
+            return default_avatar
 
 # -----------------------------------------------------------------------------
 # Modelo #3: El Consumidor Final (Cliente del Negocio)

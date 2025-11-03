@@ -52,7 +52,7 @@ class SelectPlanView(TemplateView):
         context['plans'] = Plan.objects.filter(is_active=True).order_by('price_monthly')
         return context
 #segunda pantalla para suscripcion
-class RegistrationView(TemplateView): # Cambiaremos a FormView después
+class RegistrationView(TemplateView):
     template_name = "main/registration.html"
 
     def get_context_data(self, **kwargs):
@@ -60,9 +60,8 @@ class RegistrationView(TemplateView): # Cambiaremos a FormView después
         plan_id = self.request.GET.get('plan')
         if not plan_id:
             messages.error(self.request, "Por favor, selecciona un plan primero.")
-            # Si no hay plan, redirigir a la selección de plan
-            context['error'] = True # Indicador para la plantilla
-            return context # O redirigir: redirect('select_plan')
+            context['error'] = True
+            return context 
 
         try:
             plan = Plan.objects.get(id=plan_id, is_active=True)
@@ -70,26 +69,23 @@ class RegistrationView(TemplateView): # Cambiaremos a FormView después
         except Plan.DoesNotExist:
             messages.error(self.request, "El plan seleccionado no es válido.")
             context['error'] = True
-            # Redirigir si el plan no existe
-            # return redirect('select_plan')
-
-        # context['form'] = RegistrationForm() # Añadiremos el formulario después
+        
         return context
 
     def post(self, request, *args, **kwargs):
         plan_id = request.GET.get('plan')
         if not plan_id:
-             messages.error(request, "No se especificó un plan.")
-             return redirect('select_plan')
+            messages.error(request, "No se especificó un plan.")
+            return redirect('select_plan')
         try:
             plan = Plan.objects.get(id=plan_id, is_active=True)
         except Plan.DoesNotExist:
-             messages.error(request, "El plan seleccionado no es válido.")
-             return redirect('select_plan')
+            messages.error(request, "El plan seleccionado no es válido.")
+            return redirect('select_plan')
 
         # --- Recoger datos del formulario ---
         email = request.POST.get('email', '').strip()
-        password = request.POST.get('password') # TODO: Añadir confirmación de contraseña
+        password = request.POST.get('password')
         first_name = request.POST.get('first_name', '').strip()
         last_name = request.POST.get('last_name', '').strip()
         business_name = request.POST.get('business_name', '').strip()
@@ -97,13 +93,11 @@ class RegistrationView(TemplateView): # Cambiaremos a FormView después
         # --- Validaciones básicas (un Form sería mejor) ---
         if not all([email, password, first_name, last_name, business_name]):
             messages.error(request, "Todos los campos son obligatorios.")
-            # Volver a mostrar el formulario con los datos
-            # TODO: Repopular el formulario
             return self.get(request, *args, **kwargs)
 
         if User.objects.filter(email=email).exists():
-             messages.error(request, "Ya existe un usuario con este correo electrónico.")
-             return self.get(request, *args, **kwargs)
+            messages.error(request, "Ya existe un usuario con este correo electrónico.")
+            return self.get(request, *args, **kwargs)
 
         # --- Creación de Objetos ---
         try:
@@ -118,7 +112,6 @@ class RegistrationView(TemplateView): # Cambiaremos a FormView después
 
             # 2. Crear Business
             business_slug = slugify(business_name)
-            # Asegurar slug único (simple, se puede mejorar)
             counter = 1
             while Business.objects.filter(slug=business_slug).exists():
                 business_slug = f"{slugify(business_name)}-{counter}"
@@ -128,15 +121,21 @@ class RegistrationView(TemplateView): # Cambiaremos a FormView después
                 user=user,
                 display_name=business_name,
                 slug=business_slug
-                # Otros campos tomarán valores por defecto
             )
 
-            # 3. Crear StaffMember por defecto para el dueño
-            StaffMember.objects.create(
-                business=business,
-                name=f"{first_name} {last_name}", # Usar nombre del dueño
-                user=user # Asociar al mismo User (opcional)
-            )
+            # --- INICIO DE LA MODIFICACIÓN (PASO 3) ---
+            
+            # 3. Crear StaffMember por defecto para el dueño (YA NO LO HACEMOS)
+            # Hemos comentado este bloque. Ahora el dueño es solo admin
+            # y debe añadirse manualmente si quiere ser staff.
+            
+            # StaffMember.objects.create(
+            #     business=business,
+            #     name=f"{first_name} {last_name}", # Usar nombre del dueño
+            #     user=user # Asociar al mismo User
+            # )
+            
+            # --- FIN DE LA MODIFICACIÓN ---
 
             # 4. Crear Subscription en modo TRIAL
             trial_days = 30
@@ -159,7 +158,6 @@ class RegistrationView(TemplateView): # Cambiaremos a FormView después
             # Captura de error genérica (mejorar con logging)
             print(f"Error durante el registro: {e}")
             messages.error(request, "Ocurrió un error inesperado durante el registro. Por favor, intenta de nuevo.")
-            # Podríamos borrar el usuario si se creó a medias, o manejarlo mejor
             return self.get(request, *args, **kwargs)
 
 def login_view(request):
@@ -440,8 +438,13 @@ class ManageStaffView(LoginRequiredMixin, FormMixin, ListView):
         first_name = form.cleaned_data.get('first_name', '').strip()
         last_name = form.cleaned_data.get('last_name', '').strip()
         phone_number = form.cleaned_data.get('phone_number', '').strip()
+        
+        # --- INICIO DE NUEVA LÓGICA ---
+        photo = form.cleaned_data.get('photo', None) # Obtenemos la foto
+        staff_photo = None
+        # --- FIN DE NUEVA LÓGICA ---
 
-        # Validación extra si se da acceso
+
         if give_access and not all([email, first_name, last_name]):
             messages.error(self.request, "Si das acceso al dashboard, el Correo, Nombre y Apellido son obligatorios.")
             return self.render_to_response(self.get_context_data(form=form))
@@ -449,45 +452,46 @@ class ManageStaffView(LoginRequiredMixin, FormMixin, ListView):
         staff_user = None
         user_created = False
         if give_access:
+            # (Tu lógica existente para crear/buscar usuario... sin cambios)
             user = User.objects.filter(email=email).first()
             if user is None:
-                # Crear nuevo usuario
                 temp_password = User.objects.make_random_password()
-                print(f"DEBUG: Contraseña temporal para {email}: {temp_password}") # ¡BORRAR ESTO EN PRODUCCIÓN!
-                
+                print(f"DEBUG: Contraseña temporal para {email}: {temp_password}") 
                 user = User.objects.create_user(
                     username=email, email=email,
                     first_name=first_name,
                     last_name=last_name,
-                    phone_number=phone_number, # Guardamos el teléfono
+                    phone_number=phone_number,
                     password=temp_password
                 )
                 user_created = True
-                messages.info(self.request, f"Se creó una cuenta para {email}. Deberá usar la contraseña temporal o restablecerla.")
-                # TODO: Enviar email de bienvenida
+                messages.info(self.request, f"Se creó una cuenta para {email}.")
             else:
-                 messages.info(self.request, f"El usuario {email} ya existe. Se vinculará al nuevo perfil de personal.")
-                 # Opcional: Actualizar teléfono si el usuario existe y se proporcionó uno nuevo
-                 if phone_number and user.phone_number != phone_number:
-                     user.phone_number = phone_number
-                     user.save(update_fields=['phone_number'])
-
-
-            # Verificar si este usuario ya está vinculado a OTRO staff en ESTE negocio
+                messages.info(self.request, f"El usuario {email} ya existe. Se vinculará al nuevo perfil de personal.")
+                if phone_number and user.phone_number != phone_number:
+                    user.phone_number = phone_number
+                    user.save(update_fields=['phone_number'])
+            
             if StaffMember.objects.filter(business=business, user=user).exists():
-                 messages.error(self.request, f"El usuario {email} ya está asignado a otro perfil de personal en este negocio.")
-                 # Si creamos el usuario recién, deberíamos borrarlo para evitar usuarios huérfanos
-                 if user_created:
-                     user.delete()
-                 return self.render_to_response(self.get_context_data(form=form))
+                messages.error(self.request, f"El usuario {email} ya está asignado a otro perfil de personal en este negocio.")
+                if user_created:
+                    user.delete()
+                return self.render_to_response(self.get_context_data(form=form))
             
             staff_user = user
+            
+        # --- INICIO DE NUEVA LÓGICA ---
+        # Si NO se dio acceso (es un recurso), asignamos la foto
+        else:
+            staff_photo = photo
+        # --- FIN DE NUEVA LÓGICA ---
 
         # Crear el StaffMember
         StaffMember.objects.create(
             business=business,
             name=name,
-            user=staff_user # Será None si give_access es False
+            user=staff_user, # Será None si give_access es False
+            photo=staff_photo # --- CAMBIO AQUÍ --- (Será None si give_access es True)
         )
 
         messages.success(self.request, f"Se ha añadido '{name}' al personal.")
@@ -542,44 +546,36 @@ class StaffMemberUpdateView(LoginRequiredMixin, UpdateView):
         return initial
 
     def form_valid(self, form):
-        """
-        Lógica para guardar el formulario.
-        Esto es una adaptación de tu lógica de 'crear'.
-        """
-        staff = self.get_object() # El StaffMember que estamos editando
+        staff = self.get_object() 
         business = self.request.user.business_profile
         
-        # Datos del formulario
         name = form.cleaned_data['name']
         give_access = form.cleaned_data['give_access']
         email = form.cleaned_data.get('email', '').strip()
         first_name = form.cleaned_data.get('first_name', '').strip()
         last_name = form.cleaned_data.get('last_name', '').strip()
         phone_number = form.cleaned_data.get('phone_number', '').strip()
+        
+        # --- INICIO DE NUEVA LÓGICA ---
+        photo = form.cleaned_data.get('photo', None) # Obtenemos la foto
+        # --- FIN DE NUEVA LÓGICA ---
 
-        # Actualizar el nombre del staff
         staff.name = name
 
         if give_access:
-            # --- 1. QUIERE ACCESO ---
+            # (Tu lógica existente de 'if give_access' ... sin cambios)
             if not all([email, first_name, last_name]):
                 messages.error(self.request, "Si das acceso, el Correo, Nombre y Apellido son obligatorios.")
                 return self.form_invalid(form)
 
-            # Buscar si el email ya existe en otro usuario
             target_user = User.objects.filter(email=email).first()
             
             if staff.user:
-                # --- 1a. YA TENÍA ACCESO (Actualizar datos de User) ---
-                
-                # Si cambió el email a uno que YA EXISTE y no es él mismo
                 if staff.user.email != email and target_user:
                      messages.error(self.request, f"El email {email} ya pertenece a otro usuario.")
                      return self.form_invalid(form)
-                
-                # Actualizar datos del usuario existente
                 staff.user.email = email
-                staff.user.username = email # Mantener username sincronizado
+                staff.user.username = email
                 staff.user.first_name = first_name
                 staff.user.last_name = last_name
                 staff.user.phone_number = phone_number
@@ -587,18 +583,15 @@ class StaffMemberUpdateView(LoginRequiredMixin, UpdateView):
                 messages.success(self.request, f"Se actualizaron los datos de usuario para {staff.name}.")
             
             else:
-                # --- 1b. NO TENÍA ACCESO (Crear o vincular User) ---
                 if target_user:
-                    # Vincular a usuario existente
                     if StaffMember.objects.filter(business=business, user=target_user).exists():
                         messages.error(self.request, f"El usuario {email} ya está asignado a otro perfil de personal.")
                         return self.form_invalid(form)
                     staff.user = target_user
                     messages.info(self.request, f"Se vinculó al usuario existente {email} a {staff.name}.")
                 else:
-                    # Crear nuevo usuario (lógica de tu ManageStaffView.form_valid)
                     temp_password = User.objects.make_random_password()
-                    print(f"DEBUG: Contraseña temporal para {email}: {temp_password}") # ¡BORRAR EN PRODUCCIÓN!
+                    print(f"DEBUG: Contraseña temporal para {email}: {temp_password}")
                     user = User.objects.create_user(
                         username=email, email=email,
                         first_name=first_name, last_name=last_name,
@@ -606,14 +599,25 @@ class StaffMemberUpdateView(LoginRequiredMixin, UpdateView):
                     )
                     staff.user = user
                     messages.info(self.request, f"Se creó y vinculó una nueva cuenta para {email}.")
-                    # TODO: Enviar email
+            
+            # --- INICIO DE NUEVA LÓGICA ---
+            # Si damos acceso, borramos la foto de recurso (si existía)
+            if staff.photo:
+                staff.photo = None
+            # --- FIN DE NUEVA LÓGICA ---
         
         else:
-            # --- 2. NO QUIERE ACCESO (o se lo quita) ---
+            # --- INICIO DE NUEVA LÓGICA ---
+            # NO se da acceso (es un Recurso)
             if staff.user:
-                # Si tenía un usuario, lo desvinculamos. No borramos el usuario.
                 messages.warning(self.request, f"Se ha desvinculado la cuenta de usuario de {staff.name}. El usuario no ha sido borrado.")
-                staff.user = None
+                staff.user = None # Desvinculamos el usuario
+            
+            # Si se subió una nueva foto, la guardamos
+            if photo:
+                staff.photo = photo
+            # Si no se subió una nueva, simplemente dejamos la que ya tenía (o no)
+            # --- FIN DE NUEVA LÓGICA ---
 
         staff.save()
         messages.success(self.request, f"Se ha actualizado el perfil de '{staff.name}'.")

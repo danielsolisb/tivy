@@ -7,14 +7,13 @@
 {% block page_title %}Editar Personal{% endblock %}
 
 {% block breadcrumb %}
-    <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
-    <li><a href="{% url 'manage_staff' %}">Gestionar Personal</a></li>
+    <li><a href="{% url 'dashboard' %}\">Dashboard</a></li>
+    <li><a href="{% url 'manage_staff' %}\">Gestionar Personal</a></li>
     <li class="active">Editar: {{ staff.name }}</li>
 {% endblock %}
 
 {% block content %}
 
-    {# Mostramos mensajes de error/éxito del form_valid #}
     {% if messages %}
         {% for message in messages %}
              <div class="alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'info' %}alert-info{% elif message.tags == 'warning' %}alert-warning{% else %}alert-danger{% endif %} alert-dismissible">
@@ -30,8 +29,8 @@
         </div>
         <div class="panel-body">
             
-            {# El 'action' vacío envía al mismo URL (la vista de UpdateView) #}
-            <form method="post" id="edit-staff-form">
+            {# --- CAMBIO 1: Añadimos enctype para la subida de fotos --- #}
+            <form method="post" enctype="multipart/form-data" id="edit-staff-form">
                 {% csrf_token %}
                 
                 <div class="mb-3">
@@ -48,10 +47,40 @@
                      {% include 'includes/field_errors.html' with field=form.give_access %}
                 </div>
                 
-                {# --- Campos Condicionales --- #}
-                {# La lógica 'get_initial' de la vista se encarga de mostrar esto #}
-                {# correctamente la primera vez. El JS se encarga de la interacción. #}
+                {# --- CAMBIO 2: Nuevo DIV para el campo 'photo' --- #}
+                <div id="resource-fields" style="display: none;">
+                    
+                    {# Vista previa de la foto actual del RECURSO #}
+                    <div class="mb-3">
+                        <label class="form-label">Foto Actual del Recurso:</label>
+                        <div>
+                            <img src="{{ staff.get_photo_url }}" alt="{{ staff.name }}" class="img-circle img-lg">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.photo.id_for_label }}" class="form-label">{{ form.photo.label }}</label>
+                        {{ form.photo|add_class:"form-control" }}
+                        <small class="form-text text-muted">Sube una nueva foto para este recurso (Silla, Cabina, etc.).</small>
+                        {% include 'includes/field_errors.html' with field=form.photo %}
+                    </div>
+                </div>
+                {# --- Fin Nuevo DIV --- #}
+
+                {# --- Campos Condicionales (Sin Cambios) --- #}
                 <div id="access-fields" style="display: {% if form.give_access.value %}block{% else %}none{% endif %};">
+                    
+                    {# Vista previa de la foto del USUARIO (si aplica) #}
+                    {% if staff.user %}
+                    <div class="mb-3">
+                        <label class="form-label">Foto de Perfil (gestionada por el usuario):</label>
+                        <div>
+                            <img src="{{ staff.get_photo_url }}" alt="{{ staff.name }}" class="img-circle img-lg">
+                        </div>
+                        <small class="form-text text-muted">La foto de un usuario se cambia desde su propio "Editar Perfil".</small>
+                    </div>
+                    {% endif %}
+                
                     <div class="mb-3">
                         <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
                         {{ form.email|add_class:"form-control" }}
@@ -76,10 +105,9 @@
                         {% include 'includes/field_errors.html' with field=form.phone_number %}
                     </div>
                 </div>
-                 {# --- Fin Campos Condicionales --- #}
 
                 <button type="submit" class="btn btn-primary">Guardar Cambios</button>
-                <a href="{% url 'manage_staff' %}" class="btn btn-default">Cancelar</a>
+                <a href="{% url 'manage_staff' %}"  class="btn btn-default">Cancelar</a>
             </form>
         </div>
     </div>
@@ -87,19 +115,28 @@
 {% endblock %}
 
 {% block page_script %}
-{# --- COPIA EXACTA del script de 'manage_staff.html' --- #}
+{# --- CAMBIO 3: Actualización del script de JS --- #}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const giveAccessCheckbox = document.getElementById('id_give_access');
     const accessFieldsDiv = document.getElementById('access-fields');
     const accessInputs = accessFieldsDiv ? accessFieldsDiv.querySelectorAll('input') : []; 
+    
+    {# Nueva referencia al campo de foto #}
+    const resourceFieldsDiv = document.getElementById('resource-fields');
 
     function toggleAccessFields() {
-        if (!giveAccessCheckbox || !accessFieldsDiv) return;
+        if (!giveAccessCheckbox || !accessFieldsDiv || !resourceFieldsDiv) return;
         
         const isChecked = giveAccessCheckbox.checked;
+        
+        // Mostrar campos de Acceso (email, nombre) SI está marcado
         accessFieldsDiv.style.display = isChecked ? 'block' : 'none';
         
+        // Mostrar campo de Foto SI NO está marcado (es un recurso)
+        resourceFieldsDiv.style.display = isChecked ? 'none' : 'block';
+        
+        // Lógica de campos requeridos (sin cambios)
         accessInputs.forEach(input => {
             if (input.name !== 'phone_number'){
                  input.required = isChecked;
@@ -110,8 +147,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if(giveAccessCheckbox){
-        toggleAccessFields(); 
-        giveAccessCheckbox.addEventListener('change', toggleAccessFields);
+        toggleAccessFields(); // Ejecutar al cargar
+        giveAccessCheckbox.addEventListener('change', toggleAccessFields); // Ejecutar al cambiar
     }
 });
 </script>
