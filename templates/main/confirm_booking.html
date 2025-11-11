@@ -132,82 +132,79 @@
 </div>
 
 {# --- SCRIPT UNIFICADO --- #}
+
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', function() {
         const emailInput = document.getElementById('id_email');
-        const detailsContainer = document.getElementById('customer-details-container');
+        const emailLoader = document.getElementById('email-loader');
         const firstNameInput = document.getElementById('id_first_name');
         const lastNameInput = document.getElementById('id_last_name');
-        const phoneInput = document.getElementById('id_phone_number');
-        const emailLoader = document.getElementById('email-loader');
+        
+        // --- INICIO DEL CAMBIO ---
+        const phoneInput = document.getElementById('id_phone_number'); 
+        // --- FIN DEL CAMBIO ---
 
-        const showDetails = (show = true) => {
-             detailsContainer.style.display = show ? 'block' : 'none';
-        };
+        emailInput.addEventListener('change', async function() {
+            const email = this.value.trim();
+            if (email.length < 5) return; // Validación simple
 
-        emailInput.addEventListener('blur', async () => {
-            const email = emailInput.value.trim();
-            showDetails(false); // Ocultar mientras verifica
-            firstNameInput.readOnly = false; // Resetear readOnly
-            lastNameInput.readOnly = false;
-            phoneInput.readOnly = false; // Permitir edición de teléfono por defecto
-
-            if (email.length < 5 || !email.includes('@')) {
-                showDetails(true); // Mostrar para nuevo usuario si el email es inválido
-                return;
-            }
-
-            emailLoader.style.display = 'block';
+            emailLoader.style.display = 'inline-block';
+            firstNameInput.readOnly = true;
+            lastNameInput.readOnly = true;
+            
+            // --- INICIO DEL CAMBIO ---
+            phoneInput.readOnly = true; // Bloquear mientras se comprueba
+            // --- FIN DEL CAMBIO ---
 
             try {
-                const response = await fetch(`/api/check-customer/?email=${encodeURIComponent(email)}`);
+                const response = await fetch(`{% url 'check_customer' %}?email=${encodeURIComponent(email)}`);
                 const data = await response.json();
 
                 if (data.exists) {
+                    // Usuario existe: llenar todos los campos y bloquearlos
                     firstNameInput.value = data.first_name;
                     lastNameInput.value = data.last_name;
-                    phoneInput.value = data.phone_number || '';
                     
-                    firstNameInput.readOnly = true;
-                    lastNameInput.readOnly = true;
+                    // --- INICIO DEL CAMBIO ---
+                    phoneInput.value = data.phone_number;
+                    // phoneInput.readOnly = true; // Ya está puesto arriba
+                    // --- FIN DEL CAMBIO ---
                     
-                    const serviceType = "{{ service.location_type }}";
-                    const locationChoiceRadio = document.querySelector('input[name="location_choice"]:checked');
-                    const isDomicilioSelected = locationChoiceRadio && locationChoiceRadio.value === 'domicilio';
-
-                    if (serviceType === 'LOCAL' || (serviceType === 'AMBOS' && !isDomicilioSelected)) {
-                         phoneInput.readOnly = false;
-                         phoneInput.required = true;
-                    } else {
-                         phoneInput.readOnly = true;
-                         phoneInput.required = false;
+                    // Opcional: enfocar en el siguiente campo relevante (ej: teléfono si está vacío)
+                    if (!data.phone_number) {
+                        phoneInput.readOnly = false;
+                        phoneInput.focus();
                     }
 
                 } else {
+                    // Usuario nuevo: limpiar y desbloquear campos
                     firstNameInput.value = '';
                     lastNameInput.value = '';
+                    
+                    // --- INICIO DEL CAMBIO ---
+                    // Dejamos el teléfono vacío, pero lo desbloqueamos
                     phoneInput.value = '';
+                    phoneInput.readOnly = false;
+                    // --- FIN DEL CAMBIO ---
+                    
                     firstNameInput.readOnly = false;
                     lastNameInput.readOnly = false;
-                    phoneInput.readOnly = false;
-                    firstNameInput.required = true;
-                    lastNameInput.required = true;
-                    phoneInput.required = true;
+                    firstNameInput.focus();
                 }
-                
-                showDetails(true);
-
             } catch (error) {
-                console.error('Error al verificar el cliente:', error);
-                showDetails(true);
+                console.error('Error al verificar email:', error);
                 firstNameInput.readOnly = false;
                 lastNameInput.readOnly = false;
+                
+                // --- INICIO DEL CAMBIO ---
                 phoneInput.readOnly = false;
+                // --- FIN DEL CAMBIO ---
             } finally {
                 emailLoader.style.display = 'none';
             }
         });
 
+        // --- Lógica del radio button (Sin Cambios) ---
         const radioDomicilio = document.getElementById('choice_domicilio');
         if (radioDomicilio) {
             const radioLocal = document.getElementById('choice_local');
@@ -218,19 +215,12 @@
                 const isDomicilio = radioDomicilio.checked;
                 addressContainer.style.display = isDomicilio ? 'block' : 'none';
                 addressInput.required = isDomicilio;
-                
-                // Actualizar estado readOnly/required del teléfono al cambiar opción
-                // Solo si el usuario ya fue verificado como existente (nombre bloqueado)
-                if(firstNameInput.readOnly) { 
-                     phoneInput.readOnly = isDomicilio;
-                     phoneInput.required = !isDomicilio;
-                }
             };
             radioDomicilio.addEventListener('change', toggleAddressField);
             radioLocal.addEventListener('change', toggleAddressField);
-            // Ejecutar una vez al cargar por si domicilio está preseleccionado
             toggleAddressField(); 
         }
     });
 </script>
+
 {% endblock %}

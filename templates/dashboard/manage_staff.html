@@ -7,7 +7,8 @@
 {% block page_title %}Gestionar Personal{% endblock %}
 
 {% block breadcrumb %}
-    <li><a href="{% url 'dashboard' %}\">Dashboard</a></li>
+    {# --- CORRECCIÓN DE ERROR DE TIPEADO EN URL --- #}
+    <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
     <li class="active">Gestionar Personal</li>
 {% endblock %}
 
@@ -24,15 +25,11 @@
     .table-responsive-cards tbody td::before { content: attr(data-label); position: absolute; left: 15px; top: 50%; transform: translateY(-50%); width: 45%; text-align: left; font-weight: bold; color: #333; }
     .table-responsive-cards tbody td[data-label="Acciones"] { text-align: center; padding-left: 15px; }
     .table-responsive-cards tbody td[data-label="Acciones"]::before { display: none; }
-    
-    /* Estilo para la nueva foto en móvil */
-    .table-responsive-cards tbody td[data-label="Foto"] img {
-        max-width: 40px; /* Hacer la imagen pequeña en la tarjeta */
-        border-radius: 50%;
-    }
+    .table-responsive-cards tbody td[data-label="Foto"] img { max-width: 40px; border-radius: 50%; }
 }
 </style>
 
+    {# --- MENSAJES (Sin Cambios) --- #}
     {% if messages %}
         {% for message in messages %}
              <div class="alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'info' %}alert-info{% else %}alert-danger{% endif %} alert-dismissible">
@@ -41,6 +38,43 @@
             </div>
         {% endfor %}
     {% endif %}
+
+    {# --- INICIO: NUEVO PANEL PARA AÑADIR AL DUEÑO --- #}
+    {# Se muestra solo si el dueño NO es staff Y si PUEDE añadir staff #}
+    {% if not is_owner_staff %}
+        <div class="panel">
+            <div class="panel-body text-center">
+                {# Usamos la foto del perfil del User #}
+                {% if request.user.profile_image %}
+                    <img src="{{ request.user.profile_image.url }}" alt="Tu Foto" class="img-circle img-lg mar-btm">
+                {% else %}
+                    <img src="{% static 'images/default-profile.png' %}" alt="Tu Foto" class="img-circle img-lg mar-btm">
+                {% endif %}
+                
+                <h4 class="text-thin">¡Hola, {{ request.user.first_name|default:request.user.email }}!</h4>
+                
+                {% if can_add_staff %}
+                    <p>¿Quieres ofrecer servicios y aparecer en el calendario de citas?</p>
+                    {# Este formulario apunta a la nueva URL #}
+                    <form action="{% url 'add_owner_as_staff' %}" method="POST" class="mar-top">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="demo-pli-add-user"></i> Sí, añadirme al calendario
+                        </button>
+                    </form>
+                    <hr>
+                    <p class="text-muted small">
+                        Si solo vas a administrar el negocio, ignora esto y añade a tu personal o recursos usando el formulario de abajo.
+                    </p>
+                {% else %}
+                    {# Mensaje si no es staff pero no puede añadirse por límite #}
+                    <p class="text-danger">{{ limit_message }}</p>
+                    <p>Deberás <a href="#">actualizar tu plan</a> antes de poder añadirte al personal.</p>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+    {# --- FIN: NUEVO PANEL --- #}
 
     <div class="panel">
         <div class="panel-heading">
@@ -52,7 +86,6 @@
                     <table class="table table-striped">
                         <thead>
                             <tr>
-                                {# --- CAMBIO 1: Nueva columna "Foto" --- #}
                                 <th style="width: 60px;">Foto</th>
                                 <th>Nombre</th>
                                 <th>Tipo</th>
@@ -63,7 +96,7 @@
                         <tbody>
                             {% for staff in staff_list %}
                             <tr>
-                                {# --- CAMBIO 1: Usamos la propiedad get_photo_url --- #}
+                                {# Usamos la propiedad get_photo_url (del Paso 1) #}
                                 <td data-label="Foto">
                                     <img src="{{ staff.get_photo_url }}" alt="{{ staff.name }}" class="img-circle img-sm">
                                 </td>
@@ -84,7 +117,7 @@
                                 </td>
                                 <td data-label="Acciones">
                                     {% if staff.user == request.user %}
-                                    <button class="btn btn-xs btn-default" disabled="disabled" title="Para editar tus datos personales, ve a 'Configuración Negocio' o 'Mi Perfil'.">
+                                    <button class="btn btn-xs btn-default" disabled="disabled" title="Para editar tus datos personales, ve a 'Editar Perfil'.">
                                         Editar (Tú)
                                     </button>
                                 {% else %}
@@ -99,19 +132,23 @@
                     </table>
                 </div>
             {% else %}
-                <p>Aún no has añadido personal o recursos.</p>
+                {% if not is_owner_staff %}
+                    <p class="text-center">Aún no has añadido personal o recursos.</p>
+                {% else %}
+                     <p class="text-center">Aún no has añadido otros miembros de personal o recursos.</p>
+                {% endif %}
             {% endif %}
         </div>
     </div>
 
-    {# --- Formulario para Añadir Nuevo --- #}
+    {# --- Formulario para Añadir Nuevo (Genérico) --- #}
     {% if can_add_staff %}
         <div class="panel">
             <div class="panel-heading">
-                <h3 class="panel-title">Añadir Nuevo Personal o Recurso</h3>
+                {# --- CAMBIO: Título más claro --- #}
+                <h3 class="panel-title">Añadir Otro Personal o Recurso</h3>
             </div>
             <div class="panel-body">
-                {# --- CAMBIO: Añadimos enctype para la subida de fotos --- #}
                 <form method="post" enctype="multipart/form-data" id="add-staff-form">
                     {% csrf_token %}
                     
@@ -129,7 +166,6 @@
                          {% include 'includes/field_errors.html' with field=form.give_access %}
                     </div>
                     
-                    {# --- CAMBIO 2: Nuevo DIV para el campo 'photo' --- #}
                     <div id="resource-fields" style="display: none;">
                         <div class="mb-3">
                             <label for="{{ form.photo.id_for_label }}" class="form-label">{{ form.photo.label }}</label>
@@ -138,9 +174,7 @@
                             {% include 'includes/field_errors.html' with field=form.photo %}
                         </div>
                     </div>
-                    {# --- Fin Nuevo DIV --- #}
 
-                    {# --- Campos Condicionales (Sin Cambios) --- #}
                     <div id="access-fields" style="display: {% if form.give_access.value %}block{% else %}none{% endif %};">
                         <div class="mb-3">
                             <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
@@ -167,40 +201,39 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Añadir</button>
+                    <button type="submit" class="btn btn-primary">Añadir Personal/Recurso</button>
                 </form>
             </div>
         </div>
     {% else %}
-        <div class="alert alert-warning">
-            {{ limit_message }} <a href="#">Actualiza tu plan</a> para añadir más personal.
-        </div>
+        {% if not is_owner_staff %}
+            {# No mostramos nada, el panel de "añadir dueño" ya mostró el error #}
+        {% else %}
+            {# Mostramos el límite si el dueño SÍ es staff pero no puede añadir más #}
+            <div class="alert alert-warning">
+                {{ limit_message }} <a href="#">Actualiza tu plan</a> para añadir más personal.
+            </div>
+        {% endif %}
     {% endif %}
 
 {% endblock %}
 
 {% block page_script %}
+{# --- SCRIPT (Sin cambios) --- #}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const giveAccessCheckbox = document.getElementById('id_give_access');
     const accessFieldsDiv = document.getElementById('access-fields');
     const accessInputs = accessFieldsDiv ? accessFieldsDiv.querySelectorAll('input') : []; 
-    
-    {# --- CAMBIO 3: Nueva referencia al campo de foto --- #}
     const resourceFieldsDiv = document.getElementById('resource-fields');
 
     function toggleAccessFields() {
         if (!giveAccessCheckbox || !accessFieldsDiv || !resourceFieldsDiv) return;
         
         const isChecked = giveAccessCheckbox.checked;
-        
-        // Mostrar campos de Acceso (email, nombre) SI está marcado
         accessFieldsDiv.style.display = isChecked ? 'block' : 'none';
-        
-        // --- CAMBIO 3: Mostrar campo de Foto SI NO está marcado (es un recurso) ---
         resourceFieldsDiv.style.display = isChecked ? 'none' : 'block';
         
-        // Lógica de campos requeridos (sin cambios)
         accessInputs.forEach(input => {
             if (input.name !== 'phone_number'){
                  input.required = isChecked;
@@ -211,8 +244,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if(giveAccessCheckbox){
-        toggleAccessFields(); // Ejecutar al cargar
-        giveAccessCheckbox.addEventListener('change', toggleAccessFields); // Ejecutar al cambiar
+        toggleAccessFields(); 
+        giveAccessCheckbox.addEventListener('change', toggleAccessFields);
     }
 });
 </script>

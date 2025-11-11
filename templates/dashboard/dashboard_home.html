@@ -153,7 +153,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-lg-4">
+            <div class.col-lg-4">
                 <div class="panel">
                     <div class="panel-heading">
                         <h3 class="panel-title">Próximas Citas</h3>
@@ -163,7 +163,11 @@
                             <div class="upcoming-appointment">
                                 <div class="time">{{ appt.start_time|time:"H:i A" }}</div>
                                 <div classs="details">
-                                    <strong>{{ appt.customer.first_name }} {{ appt.customer.last_name }}</strong>
+                                    
+                                    {# --- INICIO DEL CAMBIO --- #}
+                                    <strong>{{ appt.customer.user.first_name }} {{ appt.customer.user.last_name }}</strong>
+                                    {# --- FIN DEL CAMBIO --- #}
+                                    
                                     <span>{{ appt.service.name }}</span>
                                 </div>
                             </div>
@@ -175,6 +179,7 @@
                 </div>
             </div>
         </div>
+
 
         <div class="row">
             <div class="col-md-6">

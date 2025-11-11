@@ -93,14 +93,35 @@ class StaffMemberAdmin(admin.ModelAdmin):
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'business', 'email', 'phone_number', 'address_line')
-    search_fields = ('first_name', 'last_name', 'email', 'business__display_name', 'address_line')
+    
+    # --- CAMBIO: Actualizamos los campos a mostrar ---
+    list_display = ('get_customer_name', 'business', 'get_user_email', 'get_user_phone', 'address_line')
+    
+    # --- CAMBIO: Actualizamos los campos de búsqueda ---
+    search_fields = ('user__first_name', 'user__last_name', 'user__email', 'business__display_name', 'address_line')
+    
     readonly_fields = ('created_at',)
+    
+    # --- CAMBIO: Simplificamos los fieldsets ---
     fieldsets = (
-        ('Información de Contacto', {'fields': ('user', 'business', 'first_name', 'last_name', 'email', 'phone_number')}),
-        ('Información de Domicilio', {'fields': ('address_line', 'latitude', 'longitude')}),
+        ('Relación', {'fields': ('user', 'business')}),
+        ('Información de Domicilio (Específica del Negocio)', {'fields': ('address_line', 'latitude', 'longitude')}),
+        ('Notas (Solo para el Negocio)', {'fields': ('notes',)}),
     )
+    
+    # --- NUEVOS MÉTODOS para mostrar datos del User ---
+    @admin.display(description='Nombre Cliente', ordering='user__first_name')
+    def get_customer_name(self, obj):
+        return obj.user.get_full_name()
 
+    @admin.display(description='Email', ordering='user__email')
+    def get_user_email(self, obj):
+        return obj.user.email
+
+    @admin.display(description='Teléfono', ordering='user__phone_number')
+    def get_user_phone(self, obj):
+        return obj.user.phone_number
+        
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):
     list_display = ('name', 'price_monthly', 'max_staff', 'allow_payments', 'is_active') # Asegúrate que `allow_whatsapp_reminders` esté aquí si lo añadiste

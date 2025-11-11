@@ -34,7 +34,8 @@ from .views import (
     api_update_event,
     api_delete_event,
     api_get_appointments,
-    api_update_appointment_status
+    api_update_appointment_status,
+    add_owner_as_staff_view
 )
 
 urlpatterns = [
@@ -68,7 +69,8 @@ urlpatterns = [
     path('dashboard/servicios/<int:pk>/editar/', ServiceUpdateView.as_view(), name='service_update'),
     path('dashboard/disponibilidad/', ManageAvailabilityView.as_view(), name='manage_availability'),
     path('dashboard/appointments/', AppointmentCalendarView.as_view(), name='appointment_calendar'),
-    
+
+    path('dashboard/personal/add-owner/', add_owner_as_staff_view, name='add_owner_as_staff'),    
 
     #--------------Flujo de reserva------------------------------------------------------------------------#
     path('p/<slug:slug>/', BusinessPublicProfileView.as_view(), name='business_profile'),

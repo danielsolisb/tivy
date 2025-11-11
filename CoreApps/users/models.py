@@ -156,28 +156,42 @@ class StaffMember(models.Model):
 
 # -----------------------------------------------------------------------------
 # Modelo #3: El Consumidor Final (Cliente del Negocio)
-# CAMBIO: Ahora se relaciona con 'Business' en lugar de 'Client'.
+# CAMBIO: Refactorizado para ser un "conector" de relación.
 # -----------------------------------------------------------------------------
 class Customer(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer_profiles')
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='customers')
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-    email = models.EmailField()
-    phone_number = models.CharField(max_length=20, blank=True)
-    # --- NUEVOS CAMPOS DE DIRECCIÓN ---
-    address_line = models.CharField(max_length=255, blank=True, null=True, help_text="Dirección del cliente para servicios a domicilio.")
-    latitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True, help_text="Coordenada GPS (Latitud) para domicilio.")
-    longitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True, help_text="Coordenada GPS (Longitud) para domicilio.")
-    # --- FIN NUEVOS CAMPOS ---
+    
+    # --- CAMPOS REDUNDANTES ELIMINADOS ---
+    # first_name (se obtiene de user.first_name)
+    # last_name (se obtiene de user.last_name)
+    # email (se obtiene de user.email)
+    # phone_number (se obtiene de user.phone_number)
+    
+    # --- CAMPOS QUE SÍ PERTENECEN A LA RELACIÓN ---
+    address_line = models.CharField(max_length=255, blank=True, null=True, help_text="Dirección del cliente para este negocio (domicilios).")
+    latitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
+    
+    # --- NUEVO CAMPO (Ejemplo de dato específico de la relación) ---
+    notes = models.TextField(blank=True, help_text="Notas internas sobre este cliente (visto solo por el negocio).")
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = [('user', 'business'), ('business', 'email')]
+        # --- CAMBIO: 'business', 'email' ya no existe ---
+        unique_together = [('user', 'business')]
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name} (Cliente de: {self.business.display_name})"
-
+        # --- CAMBIO: Leemos los datos desde el User ---
+        try:
+            name = self.user.get_full_name()
+            if not name:
+                name = self.user.email
+        except User.DoesNotExist:
+            name = "Usuario Eliminado"
+        return f"{name} (Cliente de: {self.business.display_name})"
+        
 # --- Subscription ---
 class Subscription(models.Model):
     class SubscriptionStatus(models.TextChoices):

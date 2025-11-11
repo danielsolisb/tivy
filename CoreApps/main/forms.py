@@ -3,6 +3,7 @@
 from django import forms
 from CoreApps.users.models import User, Business, ServiceZone, StaffMember
 from CoreApps.catalog.models import Service
+from django.contrib.auth.forms import AuthenticationForm
 
 class UserProfileForm(forms.ModelForm):
     class Meta:
@@ -174,3 +175,14 @@ class ServiceForm(forms.ModelForm):
                  # Valor por defecto DOMICILIO
                  self.fields['location_type'].initial = Service.LocationType.DELIVERY_ONLY
             # Si es BOTH, dejamos todas las opciones por defecto
+
+
+class EmailAuthenticationForm(AuthenticationForm):
+    """
+    Formulario de autenticación que usa email en lugar de username.
+    """
+    # Sobrescribimos el campo 'username'
+    username = forms.EmailField(
+        label="Correo Electrónico",
+        widget=forms.EmailInput(attrs={'autofocus': True, 'class': 'form-control'})
+    )

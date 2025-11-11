@@ -34,6 +34,8 @@ from CoreApps.catalog.models import Service
 from CoreApps.scheduling.models import Appointment
 from .utils import generate_available_slots
 
+from .forms import EmailAuthenticationForm
+
 #pagina principal
 class HomePageView(TemplateView):
     template_name = "main/home.html" # Nombre de nuestra nueva plantilla
@@ -162,33 +164,36 @@ class RegistrationView(TemplateView):
 
 def login_view(request):
     if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
+        # --- CAMBIO: Usa EmailAuthenticationForm ---
+        form = EmailAuthenticationForm(request, data=request.POST)
+        
         if form.is_valid():
-            username = form.cleaned_data.get('username')
+            # --- CAMBIO: 'username' ahora contiene el email explícitamente ---
+            username = form.cleaned_data.get('username') 
             password = form.cleaned_data.get('password')
+            
+            # Llamamos a authenticate. Nuestro EmailAuthBackend se encargará.
             user = authenticate(request, username=username, password=password)
             
             if user is not None:
                 login(request, user)
                 
-                # Lógica de Redirección con los nuevos modelos
+                # Tu lógica de redirección (sin cambios, está perfecta)
                 if user.is_superuser:
                     return redirect('/admin/')
                 elif hasattr(user, 'business_profile'):
-                    # Si tiene perfil de Business, es un dueño de negocio
                     return redirect('dashboard')
                 elif hasattr(user, 'staff_profile'):
-                    # Si tiene perfil de Staff, es un empleado (futuro panel de empleado)
                     return redirect('dashboard')
                 else:
-                    # Si no, es un Customer, lo mandamos a la página de inicio
                     return redirect('/')
             else:
                 messages.error(request, "Email o contraseña incorrectos.")
         else:
             messages.error(request, "Email o contraseña incorrectos.")
     
-    form = AuthenticationForm()
+    # --- CAMBIO: Pasa el EmailAuthenticationForm vacío ---
+    form = EmailAuthenticationForm()
     return render(request, 'main/login.html', {'form': form})
 
 
@@ -389,11 +394,27 @@ class ManageStaffView(LoginRequiredMixin, FormMixin, ListView):
              messages.error(self.request, "No se pudo cargar la información de tu negocio o suscripción.")
              context['can_add_staff'] = False
              context['limit_message'] = "Error al cargar datos."
+             
+             # --- INICIO DE NUEVA LÓGICA ---
+             # Asegurarnos de que estas variables existan incluso si hay un error
+             context['is_owner_staff'] = False 
+             context['form'] = self.get_form()
+             # --- FIN DE NUEVA LÓGICA ---
+             
              return context
 
         context['business'] = business
         context['subscription'] = subscription
         context['plan'] = plan
+
+        # --- INICIO DE NUEVA LÓGICA ---
+        # Comprobar si el dueño ya es un miembro del staff
+        try:
+            StaffMember.objects.get(business=business, user=self.request.user)
+            context['is_owner_staff'] = True
+        except StaffMember.DoesNotExist:
+            context['is_owner_staff'] = False
+        # --- FIN DE NUEVA LÓGICA ---
 
         current_staff_count = self.get_queryset().count()
         max_staff = plan.max_staff
@@ -773,6 +794,47 @@ class AppointmentCalendarView(LoginRequiredMixin, TemplateView):
         context['page_title'] = "Calendario de Citas"
         return context
 
+
+@login_required
+@require_POST  # Esta vista solo acepta peticiones POST
+def add_owner_as_staff_view(request):
+    try:
+        business = request.user.business_profile
+    except Business.DoesNotExist:
+        messages.error(request, "No se encontró tu perfil de negocio.")
+        return redirect('dashboard')
+    
+    # 1. Comprobar si ya existe (seguridad)
+    if StaffMember.objects.filter(business=business, user=request.user).exists():
+        messages.warning(request, "Ya eres parte del personal.")
+        return redirect('manage_staff')
+
+    # 2. Comprobar el límite de personal (lógica copiada de tu ManageStaffView.post)
+    try:
+        subscription = Subscription.objects.select_related('plan').get(business=business)
+        plan = subscription.plan
+        current_staff_count = StaffMember.objects.filter(business=business).count()
+        max_staff = plan.max_staff
+        
+        if max_staff != -1 and current_staff_count >= max_staff:
+            messages.error(request, f"No puedes añadirte. Has alcanzado el límite de {max_staff} para tu plan.")
+            return redirect('manage_staff')
+            
+    except Subscription.DoesNotExist:
+        messages.error(request, "Error al verificar la suscripción.")
+        return redirect('manage_staff')
+
+    # 3. Todo en orden. Crear el StaffMember para el dueño.
+    owner_name = request.user.get_full_name() or request.user.email
+    StaffMember.objects.create(
+        business=business,
+        user=request.user,
+        name=owner_name
+        # 'photo' es None, así que la propiedad 'get_photo_url' usará la foto del User.
+    )
+    
+    messages.success(request, f"¡Listo! Te has añadido al personal como '{owner_name}'.")
+    return redirect('manage_staff')
 
 
 #API para calendarios y disponibilidad
@@ -1378,27 +1440,24 @@ class ConfirmBookingView(TemplateView):
     template_name = 'main/confirm_booking.html'
 
     def get_context_data(self, **kwargs):
+        # ... (Tu método get_context_data está perfecto, no necesita cambios) ...
+        # ... (Se mantiene exactamente igual) ...
         context = super().get_context_data(**kwargs)
-        # Obtenemos el Business de la URL
         business = self.get_object()
-        # Obtenemos los IDs de la sesión
         service_id = self.request.session.get('selected_service_id')
         staff_id = self.request.session.get('selected_staff_id')
         selected_time_str = self.request.session.get('selected_time')
         selected_date_str = self.request.session.get('selected_date')
         
-        # Validamos que todos los datos de sesión necesarios existan
         if not all([service_id, staff_id, selected_time_str, selected_date_str]):
             messages.error(self.request, "Faltan datos de la cita. Por favor, empieza de nuevo.")
-            context['error'] = True # Indicador para la plantilla de que algo falló
-            context['business'] = business # Pasamos business para que la plantilla base funcione
+            context['error'] = True
+            context['business'] = business
             return context
 
-        # Obtenemos los objetos Service y StaffMember
         service = get_object_or_404(Service, id=service_id)
         staff_member = get_object_or_404(StaffMember, id=staff_id)
         
-        # Calculamos el datetime completo para mostrar en el resumen
         try:
             selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
             selected_time = datetime.strptime(selected_time_str, '%H:%M').time()
@@ -1410,7 +1469,6 @@ class ConfirmBookingView(TemplateView):
             context['business'] = business
             return context
 
-        # Pasamos todos los datos necesarios al contexto de la plantilla
         context['business'] = business
         context['service'] = service
         context['staff_member'] = staff_member
@@ -1418,95 +1476,90 @@ class ConfirmBookingView(TemplateView):
         return context
     
     def post(self, request, *args, **kwargs):
-        # Obtenemos el Business de la URL
         business = self.get_object()
-        # Obtenemos los IDs y datos de la sesión
         service_id = request.session.get('selected_service_id')
         staff_id = request.session.get('selected_staff_id')
         selected_time_str = request.session.get('selected_time')
         selected_date_str = request.session.get('selected_date')
         
-        # Re-validamos que todos los datos de sesión existan antes de procesar
         if not all([service_id, staff_id, selected_time_str, selected_date_str]):
             messages.error(request, "Tu sesión ha expirado o faltan datos. Por favor, intenta de nuevo.")
             return redirect(reverse('business_profile', kwargs={'slug': business.slug}))
 
-        # Obtenemos los objetos Service y StaffMember
         service = get_object_or_404(Service, id=service_id)
         staff_member = get_object_or_404(StaffMember, id=staff_id)
         
-        # Obtenemos los datos enviados por el formulario
         email = request.POST.get('email', '').strip()
         first_name = request.POST.get('first_name', '').strip()
         last_name = request.POST.get('last_name', '').strip()
         phone_number = request.POST.get('phone_number', '').strip()
         address = request.POST.get('address', '').strip()
-        location_choice = request.POST.get('location_choice', 'local') # 'local' o 'domicilio'
+        location_choice = request.POST.get('location_choice', 'local')
 
-        # Validación básica del email
         if not email:
-             messages.error(request, "El correo electrónico es obligatorio.")
-             # Volvemos a renderizar el GET de esta misma vista
-             return self.get(request, *args, **kwargs)
+            messages.error(request, "El correo electrónico es obligatorio.")
+            return self.get(request, *args, **kwargs)
 
-        # --- Lógica de Usuario Existente / Nuevo ---
+        # --- INICIO DE LA LÓGICA REFACTORIZADA ---
         user = User.objects.filter(email=email).first()
         is_new_user = user is None
 
         if is_new_user:
-            # Si es nuevo, necesita nombre y apellido
             if not first_name or not last_name:
-                 messages.error(request, "Nombre y Apellido son obligatorios para nuevos usuarios.")
-                 return self.get(request, *args, **kwargs)
-            # Creamos el usuario sin contraseña usable
-            user = User.objects.create_user(
-                username=email, email=email, first_name=first_name,
-                last_name=last_name, password=None
-            )
-        # Si el usuario ya existe, no modificamos sus datos centrales (User)
+                messages.error(request, "Nombre y Apellido son obligatorios para nuevos usuarios.")
+                return self.get(request, *args, **kwargs)
+            
+            # --- CAMBIO: Implementamos tu lógica de contraseña aleatoria ---
+            # (Por ahora se imprime, en el futuro se enviará por email)
+            password = User.objects.make_random_password()
+            print(f"DEBUG: Contraseña temporal para {email}: {password}")
 
-        # --- Lógica de Customer (Relación Usuario-Negocio) ---
+            user = User.objects.create_user(
+                username=email, 
+                email=email, 
+                first_name=first_name,
+                last_name=last_name,
+                phone_number=phone_number, # Guardamos el teléfono en el User
+                password=password # Usamos la contraseña aleatoria
+            )
+        else:
+            # Si el usuario ya existe, actualizamos su teléfono si es necesario
+            if phone_number and user.phone_number != phone_number:
+                user.phone_number = phone_number
+                user.save(update_fields=['phone_number'])
+            # (Ya no actualizamos nombre/apellido, esos son fijos del User)
+
+        # --- Lógica de Customer (Relación Usuario-Negocio) REFACTORIZADA ---
+        
+        # Determinamos si la dirección es necesaria
+        is_domicilio_request = (service.location_type == 'DOMICILIO' or (service.location_type == 'AMBOS' and location_choice == 'domicilio'))
+        address_to_save = address if is_domicilio_request else None
+
         customer, customer_created = Customer.objects.get_or_create(
             user=user, 
             business=business,
             defaults={ # Valores por defecto SOLO si se crea el Customer
-                'email': email, 
-                'first_name': first_name if first_name else user.first_name, 
-                'last_name': last_name if last_name else user.last_name,
-                'phone_number': phone_number,
-                # Guardamos la dirección solo si aplica al servicio/elección
-                'address_line': address if (service.location_type == 'DOMICILIO' or (service.location_type == 'AMBOS' and location_choice == 'domicilio')) else None
+                'address_line': address_to_save
+                # Ya no pasamos first_name, email, etc.
             }
         )
 
-        # --- Actualizamos datos del Customer si ya existía ---
+        # --- Actualizamos datos del Customer si ya existía (SOLO DIRECCIÓN) ---
         if not customer_created:
-            update_fields = [] # Lista para actualizar solo campos modificados
-            # Actualizar teléfono si se proporcionó uno nuevo
-            if phone_number and customer.phone_number != phone_number:
-                customer.phone_number = phone_number
-                update_fields.append('phone_number')
+            update_fields = []
             
-            # Actualizar dirección si el servicio lo requiere y se proporcionó una
-            is_domicilio_request = (service.location_type == 'DOMICILIO' or (service.location_type == 'AMBOS' and location_choice == 'domicilio'))
             if is_domicilio_request and address and customer.address_line != address:
                 customer.address_line = address
                 update_fields.append('address_line')
-                # TODO: Guardar lat/lon si se capturan en el frontend y cambiaron
+                # TODO: Guardar lat/lon
             
-            # Actualizar nombre/apellido del perfil Customer si se proporcionaron y son diferentes
-            if first_name and customer.first_name != first_name:
-                customer.first_name = first_name
-                update_fields.append('first_name')
-            if last_name and customer.last_name != last_name:
-                 customer.last_name = last_name
-                 update_fields.append('last_name')
+            # (Ya no actualizamos first_name, last_name, phone)
 
-            # Guardamos solo si hubo cambios
             if update_fields:
                 customer.save(update_fields=update_fields)
+        # --- FIN DE LA LÓGICA REFACTORIZADA ---
 
-        # --- Crear la Cita ---
+        # --- Crear la Cita (Sin Cambios) ---
         try:
             selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
             selected_time = datetime.strptime(selected_time_str, '%H:%M').time()
@@ -1517,29 +1570,25 @@ class ConfirmBookingView(TemplateView):
             messages.error(request, "Error en el formato de fecha u hora guardado en la sesión.")
             return self.get(request, *args, **kwargs)
 
-        # Creamos la cita con las nuevas relaciones
         appointment = Appointment.objects.create(
             business=business,
             staff_member=staff_member,
-            customer=customer,
+            customer=customer, # Este es el 'conector'
             service=service,
             start_time=start_time,
             end_time=end_time
         )
         
-        # Limpiamos los datos de la sesión relacionados con esta reserva
+        # Limpiamos la sesión (Sin Cambios)
         request.session.pop('selected_service_id', None)
         request.session.pop('selected_staff_id', None)
         request.session.pop('selected_time', None)
         request.session.pop('selected_date', None)
         
         messages.success(request, f"¡Tu cita para {service.name} con {staff_member.name} ha sido agendada con éxito!")
-        
-        # Redirigimos a la página de confirmación de la cita recién creada
         return redirect(reverse('booking_confirmed', kwargs={'pk': appointment.pk}))
         
     def get_object(self):
-        # El objeto principal sigue siendo el Business de la URL
         return get_object_or_404(Business, slug=self.kwargs.get('slug'))
 
 #confirmación de la cita con sus datos, pantalla final.
@@ -1679,13 +1728,15 @@ def check_customer_view(request):
 
     try:
         user = User.objects.get(email=email)
-        # La lógica se mantiene simple: devuelve los datos del usuario si existe.
-        # Una mejora futura sería buscar si es cliente de este 'business' en particular.
-        data = {'exists': True, 'first_name': user.first_name, 'last_name': user.last_name}
-        customer_profile = Customer.objects.filter(user=user).last()
-        if customer_profile:
-             data['phone_number'] = customer_profile.phone_number
-
+        
+        # --- CAMBIO: Ahora devolvemos los datos desde el User (la fuente de verdad) ---
+        data = {
+            'exists': True, 
+            'first_name': user.first_name, 
+            'last_name': user.last_name,
+            'phone_number': user.phone_number # Devolvemos el teléfono global
+        }
+        # (Ya no necesitamos consultar el modelo Customer)
         return JsonResponse(data)
 
     except User.DoesNotExist:
