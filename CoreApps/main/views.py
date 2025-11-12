@@ -163,22 +163,20 @@ class RegistrationView(TemplateView):
             return self.get(request, *args, **kwargs)
 
 def login_view(request):
+    # 1. Si es un envío de datos (POST)
     if request.method == 'POST':
-        # --- CAMBIO: Usa EmailAuthenticationForm ---
+        # Instanciamos el form con los datos recibidos
         form = EmailAuthenticationForm(request, data=request.POST)
         
         if form.is_valid():
-            # --- CAMBIO: 'username' ahora contiene el email explícitamente ---
-            username = form.cleaned_data.get('username') 
+            username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
             
-            # Llamamos a authenticate. Nuestro EmailAuthBackend se encargará.
             user = authenticate(request, username=username, password=password)
             
             if user is not None:
                 login(request, user)
-                
-                # Tu lógica de redirección (sin cambios, está perfecta)
+                # Lógica de redirección
                 if user.is_superuser:
                     return redirect('/admin/')
                 elif hasattr(user, 'business_profile'):
@@ -188,15 +186,21 @@ def login_view(request):
                 else:
                     return redirect('/')
             else:
+                # El usuario no existe o la contraseña está mal
                 messages.error(request, "Email o contraseña incorrectos.")
         else:
-            messages.error(request, "Email o contraseña incorrectos.")
+            # El formulario no es válido (ej: formato de email mal)
+            messages.error(request, "Por favor revisa los datos ingresados.")
     
-    # --- CAMBIO: Pasa el EmailAuthenticationForm vacío ---
-    form = EmailAuthenticationForm()
+    # 2. Si es una carga inicial (GET)
+    else:
+        form = EmailAuthenticationForm()
+
+    # 3. Renderizado final
+    # NOTA: Si entramos al 'if POST' y falló, 'form' sigue conteniendo los datos y errores.
+    # Si entramos al 'else GET', 'form' está limpio.
     return render(request, 'main/login.html', {'form': form})
-
-
+    
 #@login_required
 class DashboardView(LoginRequiredMixin, TemplateView):
     # Apuntamos al mismo template, pero lo vamos a rediseñar

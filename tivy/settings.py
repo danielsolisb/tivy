@@ -36,15 +36,24 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '4f107676df1b.ngrok-free.app', # <-- Añade esta línea
+    '*'
+    #'4f107676df1b.ngrok-free.app', # <-- Añade esta línea
 ]
 
 #ALLOWED_HOSTS = ['*','4f107676df1b.ngrok-free.app', 'localhost']
+# Ajustes de Cookies para Desarrollo Local
+# FORZAR COMPATIBILIDAD LOCAL
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_DOMAIN = None  # Deja que el navegador decida el dominio
 
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
     'http://127.0.0.1',
-    'https://4f107676df1b.ngrok-free.app', # <-- Añade esta línea
+    'http://127.0.0.1:8000',
+    'https://4f107676df1b.ngrok-free.app',
 ]
 #CSRF_TRUSTED_ORIGINS = [
 #    'https://4f107676df1b.ngrok-free.app ' # <-- Asegurate de incluir https://
@@ -119,6 +128,11 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD'),
         'HOST': config('DB_HOST'),
         'PORT': config('DB_PORT'),
+        'OPTIONS': {
+            'ssl': {
+                'ssl-mode': 'DISABLED'
+            }
+        }
     }
 }
 
