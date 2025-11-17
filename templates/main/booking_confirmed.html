@@ -4,71 +4,82 @@
 {% block title %}¡Cita Confirmada!{% endblock %}
 
 {% block content %}
-{# --- Estilos (similares al paso 3, con colores del negocio si es posible) --- #}
 <style>
     :root {
-        /* Idealmente, necesitaríamos pasar 'business' al contexto o buscarlo aquí */
-        --theme-primary: {{ appointment.business.primary_color|default:'#28a745' }}; /* Verde éxito por defecto */
-        --theme-secondary: #f8f9fa;
+        --theme-primary: {{ appointment.business.primary_color|default:'#10B981' }}; /* Verde default para éxito */
     }
-    body { background-color: var(--theme-secondary); }
-    .confirmation-container { max-width: 450px; margin: auto; }
-    .confirmation-card { background-color: white; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 2rem; text-align: center; }
-    .check-icon { font-size: 4rem; color: var(--theme-primary); margin-bottom: 1rem; }
-    .details-card { background-color: #f8f9fa; border-radius: 10px; padding: 1.5rem; text-align: left; margin-top: 1.5rem; margin-bottom: 1.5rem; border: 1px solid #eee;}
-    .details-card img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; margin-right: 1rem; }
-    .details-card p { margin-bottom: 0.5rem; color: #555; }
-    .details-card strong { color: #333; }
-    .action-button { background-color: var(--theme-primary); border: none; color: white; padding: 0.75rem; border-radius: 8px; text-decoration: none; display: block; margin-bottom: 1rem; text-align: center; }
-    .action-button:hover { opacity: 0.9; color: white; }
-    .secondary-link { color: #555; text-decoration: none; font-size: 0.9rem; }
-    .secondary-link:hover { text-decoration: underline; }
-    .footer-button { background-color: #e9ecef; border: none; color: #555; padding: 0.75rem; border-radius: 8px; text-decoration: none; display: block; margin-top: 2rem; text-align: center; }
-    .footer-button:hover { background-color: #dee2e6; color: #333; }
+    .text-brand { color: var(--theme-primary); }
+    .bg-brand { background-color: var(--theme-primary); }
+    .border-brand { border-color: var(--theme-primary); }
 </style>
 
-<div class="container pt-3 pb-5 confirmation-container">
-    <div class="confirmation-card">
-        {# Icono de Check (necesitarás Font Awesome o similar) #}
-        <div class="check-icon">
-             <i class="fas fa-check-circle"></i>
-        </div>
+<div class="min-h-[calc(100vh-4rem)] bg-subtle-bg dark:bg-dark-subtle-bg flex items-center justify-center py-12 px-4">
+    <div class="max-w-md w-full bg-white dark:bg-background-dark rounded-2xl shadow-xl overflow-hidden border border-gray-100 dark:border-gray-700 text-center p-8">
         
-        <h2>¡Cita confirmada!</h2>
-        <p class="text-muted mb-4">Hemos enviado un correo electrónico de confirmación a tu dirección.</p>
-
-        {# --- Resumen Detallado de la Cita --- #}
-        <div class="details-card">
-             <div class="d-flex align-items-center mb-3">
-                 {% if appointment.staff_member.photo %}
-                    <img src="{{ appointment.staff_member.photo.url }}" alt="{{ appointment.staff_member.name }}">
-                 {% else %}
-                     <img src="{% static 'images/default-profile.png' %}" alt="Foto por defecto">
-                 {% endif %}
-                 <div>
-                    <strong class="d-block">{{ appointment.service.name }}</strong>
-                    <span class="text-muted">{{ appointment.staff_member.name }}</span>
-                 </div>
-             </div>
-            <p><i class="far fa-calendar-alt me-2 text-muted"></i> <strong>Fecha:</strong> {{ local_start_time|date:"l, d \d\e F" }}</p>
-            <p><i class="far fa-clock me-2 text-muted"></i> <strong>Hora:</strong> {{ local_start_time|time:"H:i A" }}</p>
-            <p><i class="fas fa-map-marker-alt me-2 text-muted"></i> <strong>Lugar:</strong> {{ appointment.business.address }}</p> {# TODO: Usar dirección del customer si es a domicilio #}
+        <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
+            <span class="material-symbols-outlined text-5xl text-green-600">check_circle</span>
         </div>
 
-        {# --- Botones de Acción --- #}
-        <a href="{{ google_calendar_url }}" target="_blank" class="action-button">
-            <i class="far fa-calendar-plus me-2"></i> Añadir al calendario
-        </a>
-        
-        <a href="{% url 'reschedule_appointment' pk=appointment.pk %}" class="secondary-link d-block mb-1">
-            Reprogramar cita
-        </a>
-        <p class="text-muted small mb-4">
-            Puedes cambiar la hora de tu cita si lo necesitas.
-            {# TODO: Añadir lógica/mensaje sobre límite de tiempo si se implementa #}
-        </p>
-        {# --- Botón para Volver al Inicio --- #}
-        <a href="{% url 'business_profile' slug=appointment.business.slug %}" class="footer-button">Volver al Inicio</a>
+        <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white mb-2">¡Reserva Exitosa!</h2>
+        <p class="text-gray-500 dark:text-gray-400 mb-8">Tu cita ha sido programada correctamente.</p>
+
+        <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 text-left border border-gray-100 dark:border-gray-700 mb-8 relative overflow-hidden">
+            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-brand"></div>
+            
+            <div class="flex items-start gap-4 mb-4 border-b border-gray-200 dark:border-gray-600 pb-4">
+                {% if appointment.staff_member.photo %}
+                    <img src="{{ appointment.staff_member.photo.url }}" class="w-12 h-12 rounded-full object-cover">
+                {% else %}
+                    <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-500">
+                        {{ appointment.staff_member.name|slice:":1" }}
+                    </div>
+                {% endif %}
+                <div>
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">{{ appointment.service.name }}</h3>
+                    <p class="text-sm text-gray-500">con {{ appointment.staff_member.name }}</p>
+                </div>
+            </div>
+
+            <div class="space-y-3 text-sm text-gray-600 dark:text-gray-300">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-gray-400">event</span>
+                    <span class="font-medium">{{ local_start_time|date:"l, d \d\e F" }}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-gray-400">schedule</span>
+                    <span class="font-medium">{{ local_start_time|time:"H:i A" }}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-gray-400">location_on</span>
+                    <span>
+                        {% if appointment.service.location_type == 'DOMICILIO' %}
+                            {{ appointment.customer.address_line }} (Tu Domicilio)
+                        {% else %}
+                            {{ appointment.business.address }}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <a href="{{ google_calendar_url }}" target="_blank" class="flex w-full items-center justify-center gap-2 rounded-lg bg-white border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg" class="w-5 h-5" alt="Google Calendar">
+                Añadir a Google Calendar
+            </a>
+
+            <a href="{% url 'business_profile' slug=appointment.business.slug %}" class="flex w-full items-center justify-center rounded-lg bg-gray-900 dark:bg-white px-4 py-3 text-sm font-semibold text-white dark:text-gray-900 shadow-sm hover:opacity-90 transition-opacity">
+                Volver al Inicio
+            </a>
+        </div>
+
+        <div class="mt-6">
+            <a href="{% url 'reschedule_appointment' pk=appointment.pk %}?token={{ reschedule_token }}" 
+               class="text-sm font-medium text-primary hover:text-secondary underline decoration-dotted transition-colors">
+                ¿Necesitas cambiar la fecha? (Reprogramar)
+            </a>
+        </div>
+
     </div>
 </div>
 {% endblock %}

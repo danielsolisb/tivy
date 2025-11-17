@@ -1,80 +1,78 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
-{% block title %}Selecciona tu Plan - Tivy{% endblock %}
+{% block title %}Elige tu Plan - Tivy{% endblock %}
 
 {% block content %}
-<style>
-    /* Reutilizamos estilos similares a los de la landing page */
-    :root {
-        --tivy-blue: #3B82F6; /* Azul principal */
-        --tivy-teal: #14B8A6; /* Verde azulado para acentos */
-        --tivy-light-gray: #F3F4F6; /* Fondo suave secciones */
-        --tivy-dark-gray: #4B5563; /* Texto principal */
-        --tivy-medium-gray: #6B7280; /* Texto secundario */
-    }
-     .btn-primary-theme {
-        background-color: var(--tivy-blue); border-color: var(--tivy-blue); color: white;
-        padding: 0.75rem 1.5rem; font-weight: 500; border-radius: 8px;
-    }
-     .btn-primary-theme:hover { opacity: 0.9; background-color: var(--tivy-blue); border-color: var(--tivy-blue); color: white; }
-     .btn-secondary-theme {
-         background-color: white; border-color: var(--tivy-blue); color: var(--tivy-blue);
-         padding: 0.75rem 1.5rem; font-weight: 500; border-radius: 8px;
-     }
-     .btn-secondary-theme:hover { background-color: #EFF6FF; border-color: var(--tivy-blue); color: var(--tivy-blue); }
-     .pricing-card {
-        background-color: white; border: 1px solid #e5e7eb; border-radius: 15px; padding: 2rem;
-        text-align: center; height: 100%; display: flex; flex-direction: column;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }
-    .pricing-card.popular { border-color: var(--tivy-blue); border-width: 2px; position: relative; overflow: hidden; }
-    .pricing-card.popular::before { content: "MÁS POPULAR"; position: absolute; top: 15px; right: -35px; background-color: var(--tivy-blue); color: white; padding: 5px 30px; font-size: 0.7rem; font-weight: bold; transform: rotate(45deg); }
-    .pricing-card ul { list-style: none; padding: 0; margin: 1.5rem 0; text-align: left; flex-grow: 1; }
-    .pricing-card li { margin-bottom: 0.75rem; color: var(--tivy-medium-gray); }
-    .pricing-card li i { color: var(--tivy-teal); margin-right: 0.5rem; }
-</style>
-
-<div class="container py-5">
-    <h2 class="text-center mb-5">Elige el plan perfecto para ti</h2>
-    <p class="text-center text-muted mb-5">Todos los planes incluyen <strong>30 días de prueba gratuita</strong>. Sin compromiso.</p>
-
-    <div class="row g-4 justify-content-center">
-        {% for plan in plans %}
-            <div class="col-md-6 col-lg-4 d-flex align-items-stretch">
-                {# Añadimos la clase 'popular' si el plan se llama 'Profesional' #}
-                <div class="pricing-card {% if plan.name == 'Profesional' %}popular{% endif %}">
-                    <h5>{{ plan.name }}</h5>
-                    <p class="h1 fw-bold mb-3">${{ plan.price_monthly|floatformat:0 }}<span class="fs-6 text-muted">/mes</span></p>
-                    <ul>
-                        {# --- Características (Adaptalas a los campos de tu modelo Plan) --- #}
-                        <li><i class="fas fa-check"></i> 
-                            {% if plan.max_staff == -1 %}
-                                Personal ilimitado
-                            {% elif plan.max_staff == 1 %}
-                                1 Miembro de Personal
+<div class="bg-subtle-bg dark:bg-dark-subtle-bg min-h-[calc(100vh-4rem)] py-16">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <div class="text-center mb-16">
+            <h1 class="text-4xl font-black tracking-tight text-primary dark:text-white sm:text-5xl">
+                Selecciona el plan ideal
+            </h1>
+            <p class="mt-4 text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                Elige cómo quieres empezar. Puedes cambiar o cancelar tu plan en cualquier momento.
+            </p>
+        </div>
+        
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 items-start justify-center">
+            {% for plan in plans %}
+                <div class="p-8 bg-background-light dark:bg-background-dark rounded-xl h-full flex flex-col relative overflow-hidden transition-transform hover:-translate-y-1 duration-300
+                            {% if plan.name == 'Profesional' %}
+                                shadow-xl border-2 border-secondary z-10
                             {% else %}
-                                {{ plan.max_staff }} Miembros de Personal
-                            {% endif %}
+                                shadow-md border border-gray-200 dark:border-gray-700
+                            {% endif %}">
+                    
+                    {% if plan.name == 'Profesional' %}
+                        <div class="absolute top-0 right-0 text-xs font-bold bg-secondary text-primary px-4 py-1 rounded-bl-lg">
+                            Recomendado
+                        </div>
+                    {% endif %}
+
+                    <h3 class="text-xl font-bold text-primary dark:text-white">{{ plan.name }}</h3>
+                    
+                    <p class="mt-6 text-4xl font-bold text-primary dark:text-white">
+                        ${{ plan.price_monthly|floatformat:0 }} <span class="text-lg font-medium text-gray-500">/ mes</span>
+                    </p>
+                    
+                    <ul class="mt-8 space-y-4 text-gray-600 dark:text-gray-300 flex-grow">
+                        <li class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-secondary">check</span> 
+                            {% if plan.max_staff == -1 %}<strong>Personal Ilimitado</strong>
+                            {% elif plan.max_staff == 1 %}1 Miembro de Personal
+                            {% else %}{{ plan.max_staff }} Miembros de Personal{% endif %}
                         </li>
-                        <li><i class="fas fa-check"></i> Citas ilimintadas</li>
-                        <li><i class="fas fa-check"></i> Página de reservas online</li>
-                        <li><i class="fas fa-check"></i> Recordatorios por email y whatsapp</li>
+                        <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Citas Ilimitadas</li>
+                        <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Reservas Online</li>
+                        
                         {% if plan.allow_payments %}
-                            <li><i class="fas fa-check"></i> Pagos online</li>
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> <strong>Pagos Online</strong></li>
                         {% endif %}
-                        {# Añade más características basadas en los campos booleanos de tu modelo Plan #}
                     </ul>
-                    {# El botón ahora lleva al formulario de registro, pasando el ID del plan #}
+
                     <a href="{% url 'register' %}?plan={{ plan.id }}" 
-                       class="btn {% if plan.name == 'Profesional' %}btn-primary-theme{% else %}btn-secondary-theme{% endif %} mt-auto">
-                       Iniciar prueba de {{ plan.name }}
+                       class="w-full mt-8 flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 font-bold transition-colors duration-200
+                              {% if plan.name == 'Profesional' %}
+                                bg-secondary text-primary hover:opacity-90 shadow-lg shadow-secondary/20
+                              {% else %}
+                                bg-primary/10 text-primary dark:text-secondary dark:bg-secondary/20 dark:hover:bg-secondary/30 hover:bg-primary/20
+                              {% endif %}">
+                       Comenzar con {{ plan.name }}
                     </a>
                 </div>
-            </div>
-        {% empty %}
-            <p class="text-center">No hay planes disponibles en este momento.</p>
-        {% endfor %}
+            {% empty %}
+                <div class="col-span-3 text-center py-12">
+                    <p class="text-gray-500 text-lg">No hay planes configurados en el sistema aún.</p>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="text-center mt-12">
+            <p class="text-sm text-gray-500">¿Ya tienes una cuenta? <a href="{% url 'login' %}" class="font-semibold text-primary hover:text-secondary">Inicia sesión</a></p>
+        </div>
     </div>
 </div>
 {% endblock %}

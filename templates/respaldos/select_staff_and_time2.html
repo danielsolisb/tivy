@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Paso 2: Elige Profesional y Horario{% endblock %}
+
+{% block content %}
+{# --- Bloque para definir los colores del tema --- #}
+<style>
+    :root {
+        --theme-primary: {{ business.primary_color|default:'#0d6efd' }};
+        --theme-secondary: {{ business.secondary_color|default:'#6c757d' }};
+    }
+    .date-selector .btn-primary {
+        background-color: var(--theme-primary);
+        border-color: var(--theme-primary);
+    }
+    .slot-button {
+        border-color: var(--theme-primary);
+        color: var(--theme-primary);
+    }
+    .slot-button:hover {
+        background-color: var(--theme-primary);
+        color: white;
+    }
+    .staff-card {
+        border: 1px solid #e0e0e0;
+        border-radius: 15px;
+        margin-bottom: 1.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+</style>
+
+<div class="container mt-4">
+    <h2 class="text-center mb-4">Elige tu Profesional y Horario</h2>
+    <p class="text-center text-muted mb-4">Estás agendando: <strong>{{ service.name }}</strong></p>
+
+    {# --- Selector de Fecha --- #}
+    <div class="date-selector d-flex justify-content-center flex-wrap gap-2 mb-5">
+        {% for day in available_days %}
+            <a href="?date={{ day.date_str }}" 
+               class="btn {% if day.date_str == target_date_str %}btn-primary{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 py-2">
+                <strong>{{ day.name }}</strong><br>
+                <small>{{ day.date|date:"d M" }}</small>
+            </a>
+        {% endfor %}
+    </div>
+
+    {# --- Lista de Profesionales y Horarios --- #}
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="selected_date" value="{{ target_date_str }}">
+
+        {% for item in staff_with_slots %}
+        <div class="staff-card">
+            <div class="row align-items-center">
+                <div class="col-md-3 text-center text-md-start mb-3 mb-md-0">
+                    {% if item.staff.photo %}
+                        <img src="{{ item.staff.photo.url }}" class="rounded-circle img-fluid" alt="{{ item.staff.name }}" style="width: 80px; height: 80px; object-fit: cover;">
+                    {% else %}
+                         <img src="{% static 'images/default-profile.png' %}" class="rounded-circle img-fluid" alt="Foto por defecto" style="width: 80px; height: 80px;">
+                    {% endif %}
+                    <h5 class="mt-2 mb-0">{{ item.staff.name }}</h5>
+                    {# <p class="text-muted small">{{ item.staff.bio|truncatewords:10 }}</p> #}
+                </div>
+                <div class="col-md-9">
+                    <div class="d-flex flex-wrap gap-2 justify-content-center justify-content-md-start">
+                        {% for slot in item.slots %}
+                            <button type="submit" name="selected_time" value="{{ slot }}" 
+                                    formaction="{{ request.path }}?date={{ target_date_str }}" 
+                                    formmethod="post" 
+                                    onclick="document.getElementById('staff-id-{{ item.staff.id }}').checked = true;"
+                                    class="btn slot-button rounded-pill px-3">
+                                {{ slot }}
+                            </button>
+                        {% endfor %}
+                    </div>
+                    {# Input oculto para enviar el ID del staff al hacer clic en un horario #}
+                    <input type="radio" name="staff_member_id" value="{{ item.staff.id }}" id="staff-id-{{ item.staff.id }}" class="d-none" required>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="alert alert-info text-center">
+            No hay profesionales con horarios disponibles para <strong>{{ service.name }}</strong> el <strong>{{ target_date_display }}</strong>.
+            <br>Por favor, selecciona otra fecha.
+        </div>
+        {% endfor %}
+        
+        {# Botón de Confirmar Reserva (opcional, ya que cada slot es un submit) #}
+        {# <button type="submit" class="btn btn-primary-theme btn-lg w-100 mt-4">Confirmar Reserva</button> #}
+    </form>
+
+</div>
+{% endblock %}

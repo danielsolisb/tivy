@@ -1,0 +1,428 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html class="light" lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Tivy: rápido, simple, tuyo.</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0A2540",
+                        "background-light": "#FFFFFF",
+                        "background-dark": "#101722",
+                        "secondary": "#00C49A",
+                        "subtle-bg": "#F6F9FC",
+                        "dark-subtle-bg": "#19212c",
+                        "text-light": "#333333",
+                        "text-dark": "#e2e8f0"
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
+<div class="relative flex min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+    
+    <header class="sticky top-0 z-50 w-full bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-4 text-primary">
+                    <div class="size-6 text-primary">
+                        <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M36.7273 44C33.9891 44 31.6043 39.8386 30.3636 33.69C29.123 39.8386 26.7382 44 24 44C21.2618 44 18.877 39.8386 17.6364 33.69C16.3957 39.8386 14.0109 44 11.2727 44C7.25611 44 4 35.0457 4 24C4 12.9543 7.25611 4 11.2727 4C14.0109 4 16.3957 8.16144 17.6364 14.31C18.877 8.16144 21.2618 4 24 4C26.7382 4 29.123 8.16144 30.3636 14.31C31.6043 8.16144 33.9891 4 36.7273 4C40.7439 4 44 12.9543 44 24C44 35.0457 40.7439 44 36.7273 44Z" fill="currentColor"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-xl font-bold leading-tight tracking-[-0.015em] text-primary dark:text-white">Tivy</h2>
+                </div>
+                <div class="hidden md:flex items-center gap-8">
+                    <div class="flex items-center gap-8">
+                        <a class="text-sm font-medium leading-normal text-text-light dark:text-text-dark hover:text-primary dark:hover:text-secondary" href="#">Funcionalidades</a>
+                        <a class="text-sm font-medium leading-normal text-text-light dark:text-text-dark hover:text-primary dark:hover:text-secondary" href="#">Precios</a>
+                        <a class="text-sm font-medium leading-normal text-text-light dark:text-text-dark hover:text-primary dark:hover:text-secondary" href="{% url 'login' %}">Iniciar Sesión</a>
+                    </div>
+                    <a href="{% url 'register' %}" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity">
+                        <span class="truncate">Comenzar</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow">
+        <section class="py-20 md:py-32">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div class="flex flex-col gap-8 text-center md:text-left">
+                        <div class="flex flex-col gap-4">
+                            <h1 class="text-5xl md:text-6xl lg:text-7xl font-black leading-tight tracking-tighter text-primary dark:text-white">
+                                Tivy: rápido, simple, tuyo.
+                            </h1>
+                            <h2 class="text-lg md:text-xl font-normal leading-normal text-text-light dark:text-text-dark">
+                                Elimina las idas y venidas y céntrate en lo que importa. Tivy automatiza tus citas, recordatorios y calendarios de equipo en una sola plataforma.
+                            </h2>
+                        </div>
+                        <div class="flex justify-center md:justify-start">
+                            <a href="{% url 'register' %}" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity">
+                                <span class="truncate">Crear mi cuenta gratis</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="w-full h-80 md:h-auto md:aspect-square bg-center bg-no-repeat bg-cover rounded-xl bg-subtle-bg dark:bg-gray-800 flex items-center justify-center border border-gray-200 dark:border-gray-700">
+                        <img src="{% static 'images/Main/seccion1.jpg' %}" alt="Calendario Tivy" class="img-fluid" style="max-width: 560px;">
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!--
+        <section class="py-8 border-b border-gray-100 dark:border-gray-800">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <p class="text-base font-medium leading-normal text-center text-gray-500 dark:text-gray-400">Con la confianza de negocios modernos</p>
+                <div class="flex flex-wrap items-center justify-center gap-8 mt-6 opacity-50 grayscale">
+                    <div class="h-8 w-24 bg-gray-300 rounded"></div>
+                    <div class="h-8 w-24 bg-gray-300 rounded"></div>
+                    <div class="h-8 w-24 bg-gray-300 rounded"></div>
+                    <div class="h-8 w-24 bg-gray-300 rounded"></div>
+                </div>
+            </div>
+        </section>
+        -->
+        <section class="py-20 md:py-24">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-primary dark:text-white">Cómo funciona</h2>
+                    <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">Pon tu negocio en piloto automático en tres pasos.</p>
+                </div>
+                
+                <div class="grid md:grid-cols-3 gap-12 relative">
+                    <div class="hidden md:block absolute top-8 left-[16%] right-[16%] h-0.5 bg-gray-200 dark:bg-gray-700 -z-10"></div>
+
+                    <div class="flex flex-col items-center text-center group">
+                        <div class="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                            <span class="material-symbols-outlined text-3xl">storefront</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-primary dark:text-white mb-3">1. Crea tu perfil</h3>
+                        <p class="text-gray-600 dark:text-gray-400">Configura tu negocio, servicios, horarios y logo en cuestión de minutos.</p>
+                    </div>
+
+                    <div class="flex flex-col items-center text-center group">
+                        <div class="w-16 h-16 bg-white border-2 border-secondary text-secondary rounded-full flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                            <span class="material-symbols-outlined text-3xl">share</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-primary dark:text-white mb-3">2. Comparte tu enlace</h3>
+                        <p class="text-gray-600 dark:text-gray-400">Envía tu enlace único o el código QR para tus clientes a través de redes sociales, email o tu sitio web.</p>
+                    </div>
+
+                    <div class="flex flex-col items-center text-center group">
+                        <div class="w-16 h-16 bg-secondary text-primary rounded-full flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                            <span class="material-symbols-outlined text-3xl">calendar_check</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-primary dark:text-white mb-3">3. Recibe reservas</h3>
+                        <p class="text-gray-600 dark:text-gray-400">Tus clientes ven tu disponibilidad en tiempo real y reservan citas 24/7, sin llamarte.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-20 md:py-24 bg-subtle-bg dark:bg-dark-subtle-bg">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-primary dark:text-white">Deja de Perder Tiempo en el Caos</h2>
+                    <p class="mt-4 text-lg text-text-light dark:text-text-dark">La programación manual consume tus recursos. Descubre cómo Tivy convierte la frustración en eficiencia.</p>
+                </div>
+                <div class="grid md:grid-cols-2 gap-8 lg:gap-16">
+                    <div class="p-8 bg-background-light dark:bg-background-dark rounded-xl shadow-sm">
+                        <h3 class="text-2xl font-bold text-red-500">El Problema</h3>
+                        <ul class="mt-6 space-y-4">
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-red-500 mt-1">cancel</span>
+                                <div>
+                                    <h4 class="font-semibold">Pérdida de Ingresos y ausencias</h4>
+                                    <p class="text-gray-600 dark:text-gray-400">Las citas perdidas y las cancelaciones de última hora impactan tus resultados.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-red-500 mt-1">cancel</span>
+                                <div>
+                                    <h4 class="font-semibold">Sobrecarga Administrativa</h4>
+                                    <p class="text-gray-600 dark:text-gray-400">Interminables cadenas de WhatsApp para encontrar un horario adecuado.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-red-500 mt-1">cancel</span>
+                                <div>
+                                    <h4 class="font-semibold">Mala experiencia para el cliente</h4>
+                                    <p class="text-gray-600 dark:text-gray-400">Un proceso de reserva engorroso puede frustrar a los clientes potenciales antes incluso de hablar contigo.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="p-8 bg-background-light dark:bg-background-dark rounded-xl shadow-sm border-2 border-secondary">
+                        <h3 class="text-2xl font-bold text-secondary">La Solución con Tivy</h3>
+                        <ul class="mt-6 space-y-4">
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-secondary mt-1">check_circle</span>
+                                <div>
+                                    <h4 class="font-semibold">Recordatorios automatizados</h4>
+                                    <p class="text-gray-600 dark:text-gray-400">Reduce drásticamente las ausencias con recordatorios automáticos por WhatsApp y correo electrónico para tus clientes.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-secondary mt-1">check_circle</span>
+                                <div>
+                                    <h4 class="font-semibold">Plataforma centralizada/h4>
+                                    <p class="text-gray-600 dark:text-gray-400">Gestiona la disponibilidad y las reservas de todo tu equipo desde un único panel intuitivo.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-secondary mt-1">check_circle</span>
+                                <div>
+                                    <h4 class="font-semibold">Fidelización Integrada</h4>
+                                    <p class="text-gray-600 dark:text-gray-400">Tus clientes acumulan puntos automáticamente con cada cita. Haz que vuelvan.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-20 md:py-24">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-20">
+                
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div class="order-2 md:order-1">
+                        <span class="inline-block px-3 py-1 text-sm font-semibold text-secondary bg-secondary/10 rounded-full mb-3">Automatización</span>
+                        <h3 class="text-3xl font-bold text-primary dark:text-white mb-4">Recordatorios por WhatsApp y Correo</h3>
+                        <p class="text-lg text-text-light dark:text-text-dark">
+                            Olvida los seguimientos manuales. Tivy envía automáticamente mensajes de WhatsApp y correos electrónicos a tus clientes antes de la cita, reduciendo las ausencias drásticamente y manteniendo tu agenda llena.
+                        </p>
+                    </div>
+                    <div class="order-1 md:order-2">
+                        <div class="w-full h-80 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center text-gray-400">Imagen de Notificación WhatsApp</div>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <div class="w-full h-80 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center text-gray-400">Imagen de Google Calendar</div>
+                    </div>
+                    <div>
+                        <span class="inline-block px-3 py-1 text-sm font-semibold text-secondary bg-secondary/10 rounded-full mb-3">Experiencia del Cliente</span>
+                        <h3 class="text-3xl font-bold text-primary dark:text-white mb-4">Integrado para tu Cliente</h3>
+                        <p class="text-lg text-text-light dark:text-text-dark">
+                            Facilita la vida de tus usuarios. Una vez confirmada la reserva, tus clientes pueden <strong>guardar la cita directamente en su Google Calendar</strong> con un solo clic. Una experiencia profesional que asegura su asistencia y compromiso.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div class="order-2 md:order-1">
+                        <span class="inline-block px-3 py-1 text-sm font-semibold text-secondary bg-secondary/10 rounded-full mb-3">Personalización</span>
+                        <h3 class="text-3xl font-bold text-primary dark:text-white mb-4">Tu Marca, Tu Estilo</h3>
+                        <p class="text-lg text-text-light dark:text-text-dark">Refleja tu identidad con una página de reservas personalizada. Añade tu logo, colores de marca y fotos de tus servicios para crear una experiencia única.</p>
+                    </div>
+                    <div class="order-1 md:order-2">
+                        <div class="w-full h-80 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center text-gray-400">Imagen de Perfil Público</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-20 md:py-24 bg-subtle-bg dark:bg-dark-subtle-bg" id="precios">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-primary dark:text-white">Encuentra el Plan Perfecto</h2>
+                    <p class="mt-4 text-lg text-text-light dark:text-text-dark">Precios transparentes para hacer crecer tu negocio.</p>
+                </div>
+
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 items-start justify-center">
+                    {% for plan in plans %}
+                        <div class="p-8 bg-background-light dark:bg-background-dark rounded-xl h-full flex flex-col relative overflow-hidden
+                                    {% if plan.name == 'Profesional' %}
+                                        shadow-lg border-2 border-secondary transform md:-translate-y-4 z-10
+                                    {% else %}
+                                        shadow-md border border-gray-200 dark:border-gray-700
+                                    {% endif %}">
+
+                            {% if plan.name == 'Profesional' %}
+                                <div class="absolute top-0 right-0 text-xs font-bold bg-secondary text-primary px-4 py-1 rounded-bl-lg">
+                                    Recomendado
+                                </div>
+                            {% endif %}
+                            
+                            <h3 class="text-xl font-bold text-primary dark:text-white">{{ plan.name }}</h3>
+                            <p class="mt-2 text-gray-500 dark:text-gray-400">
+                                {% if plan.name == 'Inicial' %}Para empezar.{% elif plan.name == 'Profesional' %}Para crecer.{% else %}Para escalar.{% endif %}
+                            </p>
+
+                            <p class="mt-6 text-4xl font-bold text-primary dark:text-white">
+                                ${{ plan.price_monthly|floatformat:0 }} <span class="text-lg font-medium text-gray-500">/ mes</span>
+                            </p>
+
+                            <ul class="mt-8 space-y-4 text-gray-600 dark:text-gray-300 flex-grow">
+                                <li class="flex items-center gap-3">
+                                    <span class="material-symbols-outlined text-secondary">check</span> 
+                                    {% if plan.max_staff == -1 %}
+                                        <strong>Personal Ilimitado</strong>
+                                    {% elif plan.max_staff == 1 %}
+                                        1 Miembro de Personal
+                                    {% else %}
+                                        {{ plan.max_staff }} Miembros de Personal
+                                    {% endif %}
+                                </li>
+                            
+                                <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Citas Ilimitadas</li>
+                                <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Página de reservas online</li>
+                                <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Recordatorios Email/WhatsApp</li>
+
+                                {% if plan.allow_payments %}
+                                    <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> <strong>Pagos Online</strong></li>
+                                {% endif %}
+
+                                </ul>
+                            
+                            <a href="{% url 'register' %}?plan={{ plan.id }}" 
+                               class="w-full mt-8 flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 font-bold transition-colors duration-200
+                                      {% if plan.name == 'Profesional' %}
+                                        bg-secondary text-primary hover:opacity-90
+                                      {% else %}
+                                        bg-primary/10 text-primary dark:text-secondary dark:bg-secondary/20 dark:hover:bg-secondary/30 hover:bg-primary/20
+                                      {% endif %}">
+                               Elegir {{ plan.name }}
+                            </a>
+                        </div>
+                    {% empty %}
+                        <div class="col-span-3 text-center py-12">
+                            <p class="text-gray-500 text-lg">No hay planes configurados en el sistema aún.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <!--
+        <section class="py-20 md:py-24 bg-subtle-bg dark:bg-dark-subtle-bg">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-primary dark:text-white">Encuentra el Plan Perfecto</h2>
+                    <p class="mt-4 text-lg text-text-light dark:text-text-dark">Precios transparentes para hacer crecer tu negocio.</p>
+                </div>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 items-start">
+                    <div class="p-8 bg-background-light dark:bg-background-dark rounded-xl shadow-md border border-gray-200 dark:border-gray-700 h-full flex flex-col">
+                        <h3 class="text-xl font-bold text-primary dark:text-white">Inicial</h3>
+                        <p class="mt-2 text-gray-500 dark:text-gray-400">Para empezar a organizarte.</p>
+                        <p class="mt-6 text-4xl font-bold text-primary dark:text-white">$10 <span class="text-lg font-medium text-gray-500">/ mes</span></p>
+                        <ul class="mt-8 space-y-4 text-gray-600 dark:text-gray-300 flex-grow">
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> 1 Usuario (Staff)</li>
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Citas Ilimitadas</li>
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Página de Reserva</li>
+                        </ul>
+                        <a href="{% url 'register' %}" class="w-full mt-8 flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary/10 text-primary dark:text-secondary dark:bg-secondary/20 dark:hover:bg-secondary/30 font-bold hover:bg-primary/20 transition-colors">Elegir Plan</a>
+                    </div>
+                    
+                    <div class="p-8 bg-background-light dark:bg-background-dark rounded-xl shadow-lg border-2 border-secondary h-full flex flex-col relative overflow-hidden transform md:-translate-y-4">
+                        <div class="absolute top-0 right-0 text-xs font-bold bg-secondary text-primary px-4 py-1 rounded-bl-lg">Recomendado</div>
+                        <h3 class="text-xl font-bold text-primary dark:text-white">Profesional</h3>
+                        <p class="mt-2 text-gray-500 dark:text-gray-400">Para negocios en expansión.</p>
+                        <p class="mt-6 text-4xl font-bold text-primary dark:text-white">$25 <span class="text-lg font-medium text-gray-500">/ mes</span></p>
+                        <ul class="mt-8 space-y-4 text-gray-600 dark:text-gray-300 flex-grow">
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Todo del Plan Inicial</li>
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> 5 Usuarios (Staff)</li>
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Recordatorios WhatsApp</li>
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Sistema de Lealtad (Puntos)</li>
+                        </ul>
+                        <button class="w-full mt-8 flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-secondary text-primary font-bold hover:opacity-90 transition-opacity">Elegir Plan</button>
+                    </div>
+
+                    <div class="p-8 bg-background-light dark:bg-background-dark rounded-xl shadow-md border border-gray-200 dark:border-gray-700 h-full flex flex-col">
+                        <h3 class="text-xl font-bold text-primary dark:text-white">Empresarial</h3>
+                        <p class="mt-2 text-gray-500 dark:text-gray-400">Organizaciones grandes.</p>
+                        <p class="mt-6 text-4xl font-bold text-primary dark:text-white">$50</p>
+                        <ul class="mt-8 space-y-4 text-gray-600 dark:text-gray-300 flex-grow">
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Todo el plan profesional</li>
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Usuarios ilimitados (Staff)</li>
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Recordatorios WhatsApp/Email</li>
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Soporte Dedicado 24/7</li>
+                        </ul>
+                        <button class="w-full mt-8 flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary/10 text-primary dark:text-secondary dark:bg-secondary/20 dark:hover:bg-secondary/30 font-bold hover:bg-primary/20 transition-colors">Contactar Ventas</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        -->
+        <section class="py-20 md:py-24">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-primary dark:text-white">¿Listo para optimizar tu agendamiento?</h2>
+                <p class="mt-4 text-lg text-text-light dark:text-text-dark max-w-2xl mx-auto">Únete a los negocios que confían en Tivy para automatizar sus citas. Comienza gratis hoy mismo.</p>
+                <div class="mt-8">
+                    <a href="{% url 'register' %}" class="flex mx-auto min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-14 px-8 bg-primary text-white text-lg font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity">
+                        <span class="truncate">Comenzar Gratis</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-subtle-bg dark:bg-dark-subtle-bg">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
+                <div class="col-span-2 lg:col-span-2">
+                    <div class="flex items-center gap-3 text-primary">
+                        <div class="size-6 text-primary">
+                            <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M36.7273 44C33.9891 44 31.6043 39.8386 30.3636 33.69C29.123 39.8386 26.7382 44 24 44C21.2618 44 18.877 39.8386 17.6364 33.69C16.3957 39.8386 14.0109 44 11.2727 44C7.25611 44 4 35.0457 4 24C4 12.9543 7.25611 4 11.2727 4C14.0109 4 16.3957 8.16144 17.6364 14.31C18.877 8.16144 21.2618 4 24 4C26.7382 4 29.123 8.16144 30.3636 14.31C31.6043 8.16144 33.9891 4 36.7273 4C40.7439 4 44 12.9543 44 24C44 35.0457 40.7439 44 36.7273 44Z" fill="currentColor"></path>
+                            </svg>
+                        </div>
+                        <h2 class="text-xl font-bold text-primary dark:text-white">Tivy</h2>
+                    </div>
+                    <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">La plataforma moderna de agendamiento para servicios profesionales.</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-text-light dark:text-white">Producto</h4>
+                    <ul class="mt-4 space-y-3">
+                        <li><a class="text-sm text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-secondary" href="#">Funcionalidades</a></li>
+                        <li><a class="text-sm text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-secondary" href="#">Precios</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-text-light dark:text-white">Legal</h4>
+                    <ul class="mt-4 space-y-3">
+                        <li><a class="text-sm text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-secondary" href="#">Política de Privacidad</a></li>
+                        <li><a class="text-sm text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-secondary" href="#">Términos de Servicio</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-12 border-t border-gray-200 dark:border-gray-700 pt-8 flex flex-col sm:flex-row justify-between items-center">
+                <p class="text-sm text-gray-500 dark:text-gray-400">© 2025 Tivy Inc. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+</div>
+</body>
+</html>

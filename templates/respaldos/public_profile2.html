@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ business.display_name }}{% endblock %}
+
+{% block content %}
+{# --- Bloque para definir los colores del tema --- #}
+<style>
+    :root {
+        --theme-primary: {{ business.primary_color|default:'#0d6efd' }}; /* Color primario o azul por defecto */
+        --theme-secondary: {{ business.secondary_color|default:'#6c757d' }}; /* Color secundario o gris por defecto */
+    }
+    .btn-primary-theme {
+        background-color: var(--theme-primary);
+        border-color: var(--theme-primary);
+        color: white; /* Asumimos texto blanco sobre color primario, se puede ajustar */
+    }
+    .btn-primary-theme:hover {
+        opacity: 0.9;
+        background-color: var(--theme-primary);
+        border-color: var(--theme-primary);
+        color: white;
+    }
+    .service-card {
+        border-radius: 15px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease-in-out;
+    }
+    .service-card:hover {
+        transform: translateY(-5px);
+    }
+</style>
+
+<div class="container mt-5">
+    {# --- Logo del Negocio (Opcional, centrado) --- #}
+    <div class="text-center mb-4">
+        {% if business.photo %}
+            <img src="{{ business.photo.url }}" class="rounded-circle" alt="Logo de {{ business.display_name }}" style="max-width: 100px; max-height: 100px; object-fit: cover;">
+        {% endif %}
+    </div>
+
+    <h2 class="text-center mb-5">Nuestros Servicios</h2>
+
+    {# --- Mensajes de error --- #}
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-warning">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    {# --- Formulario que engloba toda la selección --- #}
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-4">
+            {% for service in services %}
+            <div class="col-md-6 col-lg-4 d-flex align-items-stretch">
+                <div class="card service-card w-100">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">{{ service.name }}</h5>
+                        <p class="card-text flex-grow-1">{{ service.description|default:"Descripción no disponible." }}</p>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <span class="h5 text-muted">${{ service.price|floatformat:2 }}</span>
+                            {# --- Botón específico para este servicio --- #}
+                            <button type="submit" name="service_id" value="{{ service.id }}" class="btn btn-primary-theme">
+                                Seleccionar
+                            </button>
+                        </div>
+                         <small class="text-muted mt-2">Duración: {{ service.duration }}</small>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col">
+                <p class="text-center text-muted">Este negocio no tiene servicios activos en este momento.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        {# --- Sección oculta para seleccionar el profesional (se llenará con JS más adelante si es necesario) --- #}
+        {# Por ahora, asumimos que se elige aquí o en el siguiente paso #}
+        <div class="mt-4 d-none"> {# TODO: Desocultar y poblar dinámicamente o eliminar si se elige en paso separado #}
+             <label class="form-label"><strong>Profesional:</strong></label>
+             <div id="staff-selection">
+                {% for staff in staff_members %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="staff_member_id" id="staff-{{ staff.id }}" value="{{ staff.id }}" required>
+                        <label class="form-check-label" for="staff-{{ staff.id }}">
+                            {{ staff.name }}
+                        </label>
+                    </div>
+                {% empty %}
+                    {# Este mensaje no debería aparecer si filtramos por servicio #}
+                {% endfor %}
+            </div>
+        </div>
+        {# <button type="submit" class="btn btn-primary mt-4 d-none">Siguiente</button> #}
+    </form>
+</div>
+{% endblock %}

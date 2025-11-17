@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Tivy: Agendamiento rápido, simple, tuyo.{% endblock %}
+
+{% block content %}
+<style>
+    /* Colores sugeridos (ajustalos a tu gusto) */
+    :root {
+        --tivy-blue: #3B82F6; /* Azul principal */
+        --tivy-teal: #14B8A6; /* Verde azulado para acentos */
+        --tivy-light-gray: #F3F4F6; /* Fondo suave secciones */
+        --tivy-dark-gray: #4B5563; /* Texto principal */
+        --tivy-medium-gray: #6B7280; /* Texto secundario */
+    }
+
+    body {
+        color: var(--tivy-dark-gray);
+    }
+    .navbar { /* Asegurarnos que la barra de nav use el ancho completo */
+        width: 100%;
+    }
+    .hero-section {
+        background-color: var(--tivy-light-gray);
+        padding: 4rem 0;
+    }
+    .hero-section h1 {
+        font-weight: bold;
+        color: var(--tivy-dark-gray);
+    }
+    .hero-section .lead {
+        color: var(--tivy-medium-gray);
+        margin-bottom: 2rem;
+    }
+    .btn-primary-theme {
+        background-color: var(--tivy-blue);
+        border-color: var(--tivy-blue);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        border-radius: 8px;
+    }
+     .btn-primary-theme:hover {
+        opacity: 0.9;
+        background-color: var(--tivy-blue);
+        border-color: var(--tivy-blue);
+        color: white;
+    }
+    .btn-secondary-theme {
+         background-color: white;
+         border-color: var(--tivy-blue);
+         color: var(--tivy-blue);
+         padding: 0.75rem 1.5rem;
+         font-weight: 500;
+         border-radius: 8px;
+    }
+     .btn-secondary-theme:hover {
+         background-color: #EFF6FF; /* Azul muy claro */
+         border-color: var(--tivy-blue);
+         color: var(--tivy-blue);
+     }
+
+    .section-padding {
+        padding: 4rem 0;
+    }
+    .feature-icon {
+        font-size: 2rem;
+        color: var(--tivy-blue);
+        margin-bottom: 1rem;
+        display: inline-block;
+    }
+    .testimonial-card {
+        background-color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        height: 100%; /* Para alinear tarjetas */
+    }
+    .testimonial-card img {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        margin-bottom: 1rem;
+    }
+    .pricing-card {
+        background-color: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 15px;
+        padding: 2rem;
+        text-align: center;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .pricing-card.popular {
+        border-color: var(--tivy-blue);
+        border-width: 2px;
+        position: relative;
+        overflow: hidden; /* Para la cinta 'Más Popular' */
+    }
+    .pricing-card.popular::before { /* Cinta 'Más Popular' */
+        content: "MÁS POPULAR";
+        position: absolute;
+        top: 15px;
+        right: -35px;
+        background-color: var(--tivy-blue);
+        color: white;
+        padding: 5px 30px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        transform: rotate(45deg);
+    }
+    .pricing-card ul {
+        list-style: none;
+        padding: 0;
+        margin: 1.5rem 0;
+        text-align: left;
+        flex-grow: 1; /* Empuja el botón hacia abajo */
+    }
+    .pricing-card li {
+        margin-bottom: 0.75rem;
+        color: var(--tivy-medium-gray);
+    }
+     .pricing-card li i { /* Icono check */
+         color: var(--tivy-teal);
+         margin-right: 0.5rem;
+     }
+    .cta-section {
+        background-color: var(--tivy-blue);
+        color: white;
+        padding: 4rem 0;
+        border-radius: 15px;
+    }
+    footer {
+        padding: 2rem 0;
+        text-align: center;
+        font-size: 0.9rem;
+        color: var(--tivy-medium-gray);
+    }
+
+</style>
+
+{# --- Sección Hero --- #}
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1>Tivy: rápido, simple, tuyo.</h1>
+                <p class="lead">Simplifica la programación de citas y concentrate en lo que más importa: hacer crecer tu negocio.</p>
+                <a href="{% url 'select_plan' %}" class="btn btn-primary-theme">Empieza tu prueba gratis</a>
+            </div>
+            <div class="col-lg-6 text-center mt-4 mt-lg-0">
+                {# Placeholder para la imagen, reemplaza con tu imagen #}
+                <img src="{% static 'images/hero-placeholder.jpg' %}" alt="Calendario Tivy" class="img-fluid" style="max-width: 400px;">
+            </div>
+        </div>
+    </div>
+</section>
+
+{# --- Sección Cómo Funciona --- #}
+<section class="section-padding">
+    <div class="container text-center">
+        <h2 class="mb-5">Cómo funciona</h2>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <span class="feature-icon"><i class="fas fa-user-edit"></i></span> {# Reemplaza con iconos adecuados #}
+                <h5>1. Crea tu perfil</h5>
+                <p class="text-muted">Configura tu negocio, servicios, horarios y logo en cuestión de minutos.</p>
+            </div>
+            <div class="col-md-4">
+                 <span class="feature-icon"><i class="fas fa-share-alt"></i></span>
+                <h5>2. Comparte tu enlace</h5>
+                <p class="text-muted">Envía tu enlace único a tus clientes a través de redes sociales, email o tu sitio web.</p>
+            </div>
+            <div class="col-md-4">
+                 <span class="feature-icon"><i class="fas fa-calendar-check"></i></span>
+                <h5>3. Recibe reservas</h5>
+                <p class="text-muted">Tus clientes ven tu disponibilidad en tiempo real y reservan citas 24/7, sin llamarte.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{# --- Sección Solución Perfecta --- #}
+<section class="section-padding bg-light">
+    <div class="container text-center">
+         <h2 class="mb-5">Una solución perfecta para tu negocio</h2>
+         <div class="row g-4 justify-content-center">
+            <div class="col-md-4 col-lg-3">
+                <span class="feature-icon"><i class="fas fa-cut"></i></span>
+                <h6>Salones de Belleza</h6>
+                 <p class="small text-muted">Agenda cortes, tintes y más. Envía recordatorios automáticos para reducir las ausencias.</p>
+            </div>
+             <div class="col-md-4 col-lg-3">
+                 <span class="feature-icon"><i class="fas fa-spa"></i></span>
+                <h6>Spas y Bienestar</h6>
+                <p class="small text-muted">Gestiona masajes, terapias y paquetes. Ofrece una experiencia relajante desde el primer momento.</p>
+             </div>
+             <div class="col-md-4 col-lg-3">
+                 <span class="feature-icon"><i class="fas fa-user-md"></i></span>
+                <h6>Consultorios Médicos</h6>
+                <p class="small text-muted">Optimiza la agenda de pacientes y permite la reserva online de forma segura y eficiente.</p>
+             </div>
+              <div class="col-md-4 col-lg-3">
+                  <span class="feature-icon"><i class="fas fa-home"></i></span>
+                 <h6>Servicios a Domicilio</h6>
+                 <p class="small text-muted">Define tus zonas, gestiona tus servicios de fontanería, limpieza o tutorías fácilmente.</p>
+             </div>
+         </div>
+    </div>
+</section>
+
+{# --- Sección Testimonios --- #}
+<section class="section-padding">
+    <div class="container">
+        <h2 class="text-center mb-5">Lo que nuestros clientes opinan</h2>
+        <div class="row g-4">
+            {# Ejemplo Testimonio 1 #}
+            <div class="col-md-4 d-flex align-items-stretch">
+                <div class="testimonial-card">
+                    <img src="{% static 'images/testimonio1.jpg' %}" alt="Cliente 1">
+                    <p class="fst-italic mb-3">"Tivy ha transformado la gestión de mi peluquería. Ahora dedico menos tiempo al teléfono y mis citas 'no-show' han disminuido un 80% gracias a los recordatorios automáticos."</p>
+                    <strong>Ana García</strong><br>
+                    <small class="text-muted">Propietaria, Salón Estilo</small>
+                </div>
+            </div>
+            {# Ejemplo Testimonio 2 #}
+             <div class="col-md-4 d-flex align-items-stretch">
+                <div class="testimonial-card">
+                     <img src="{% static 'images/testimonio2.jpg' %}" alt="Cliente 2">
+                    <p class="fst-italic mb-3">"Simple, intuitivo y potente. Ahora paso menos tiempo organizando mi agenda y más tiempo con mis pacientes. Lo recomiendo totalmente."</p>
+                    <strong>Carlos Martínez</strong><br>
+                    <small class="text-muted">Fisioterapeuta</small>
+                </div>
+            </div>
+            {# Ejemplo Testimonio 3 #}
+             <div class="col-md-4 d-flex align-items-stretch">
+                <div class="testimonial-card">
+                     <img src="{% static 'images/testimonio3.jpg' %}" alt="Cliente 3">
+                    <p class="fst-italic mb-3">"Como profesional a domicilio, Tivy me ayuda a definir mis zonas y darles a mis clientes la facilidad para agendar mis servicios."</p>
+                    <strong>Javier Rodríguez</strong><br>
+                    <small class="text-muted">Técnico Informático</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{# --- Sección Planes --- #}
+<section class="section-padding bg-light">
+    <div class="container">
+        <h2 class="text-center mb-5">Planes simples, sin sorpresas</h2>
+         <div class="row g-4 justify-content-center">
+             {# Plan Básico #}
+             <div class="col-md-6 col-lg-4 d-flex align-items-stretch">
+                 <div class="pricing-card">
+                    <h5>Básico</h5>
+                    <p class="h1 fw-bold mb-3">$10<span class="fs-6 text-muted">/mes</span></p>
+                    <ul>
+                        <li><i class="fas fa-check"></i> 1 Calendario (1 Staff)</li>
+                        <li><i class="fas fa-check"></i> Página de reservas</li>
+                        <li><i class="fas fa-check"></i> Recordatorios por email</li>
+                    </ul>
+                     <a href="#" class="btn btn-secondary-theme mt-auto">Empezar</a>
+                 </div>
+             </div>
+              {# Plan Profesional (Popular) #}
+             <div class="col-md-6 col-lg-4 d-flex align-items-stretch">
+                 <div class="pricing-card popular">
+                     <h5>Profesional</h5>
+                    <p class="h1 fw-bold mb-3">$25<span class="fs-6 text-muted">/mes</span></p>
+                    <ul>
+                         <li><i class="fas fa-check"></i> 5 Calendarios (5 Staff)</li>
+                        <li><i class="fas fa-check"></i> Página personalizada</li>
+                        <li><i class="fas fa-check"></i> Recordatorios Email/SMS</li>
+                         <li><i class="fas fa-check"></i> Pagos online</li>
+                    </ul>
+                     <a href="#" class="btn btn-primary-theme mt-auto">Elegir plan</a>
+                 </div>
+             </div>
+              {# Plan Empresa #}
+             <div class="col-md-6 col-lg-4 d-flex align-items-stretch">
+                 <div class="pricing-card">
+                     <h5>Empresa</h5>
+                    <p class="h1 fw-bold mb-3">$50<span class="fs-6 text-muted">/mes</span></p>
+                    <ul>
+                        <li><i class="fas fa-check"></i> Calendarios ilimitados</li>
+                         <li><i class="fas fa-check"></i> Marca blanca</li>
+                        <li><i class="fas fa-check"></i> Soporte prioritario</li>
+                         <li><i class="fas fa-check"></i> Analíticas avanzadas</li>
+                    </ul>
+                     <a href="#" class="btn btn-secondary-theme mt-auto">Contactar</a>
+                 </div>
+             </div>
+         </div>
+    </div>
+</section>
+
+{# --- Sección Final CTA --- #}
+<section class="section-padding">
+    <div class="container">
+        <div class="cta-section text-center">
+            <h2 class="mb-3">¿Listo para optimizar tu agenda?</h2>
+            <p class="lead mb-4">Únete a cientos de negocios que ya confían en Tivy para facilitar su crecimiento.<br>Aprovecha la oportunidad de la prueba gratis.</p>
+            <a href="{% url 'select_plan' %}" class="btn btn-light btn-lg">Empieza tu prueba gratis</a>
+        </div>
+    </div>
+</section>
+
+{# --- Footer --- #}
+<footer>
+    <div class="container">
+        © {% now "Y" %} Tivy, Inc. Todos los derechos reservados.
+    </div>
+</footer>
+
+{# --- Dependencia Opcional: Font Awesome para iconos --- #}
+{# Añade esto en tu base.html si quieres usar los iconos de ejemplo #}
+{# <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"> #}
+
+{% endblock %}

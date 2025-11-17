@@ -1,79 +1,110 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Regístrate en Tivy - Plan {{ plan.name }}{% endblock %}
+{% block title %}Crea tu Cuenta - Tivy{% endblock %}
 
 {% block content %}
-<style>
-    /* Reutilizamos algunos estilos */
-     :root {
-        --tivy-blue: #3B82F6;
-        --tivy-light-gray: #F3F4F6;
-    }
-     body { background-color: var(--tivy-light-gray); }
-    .registration-form {
-        max-width: 500px;
-        margin: 3rem auto;
-        background-color: white;
-        padding: 2.5rem;
-        border-radius: 15px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-     .form-control { border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; }
-     .form-label { font-weight: 500; }
-     .btn-primary-theme { background-color: var(--tivy-blue); border-color: var(--tivy-blue); color: white; padding: 0.75rem 1.25rem; font-size: 1.1rem; width: 100%;}
-     .btn-primary-theme:hover { opacity: 0.9; background-color: var(--tivy-blue); border-color: var(--tivy-blue); color: white; }
-</style>
-
-<div class="registration-form">
-    <h2 class="text-center mb-1">Crea tu cuenta</h2>
-    {% if plan %}
-    <p class="text-center text-muted mb-4">Iniciando prueba de 30 días - Plan <strong>{{ plan.name }}</strong></p>
-    {% else %}
-    <p class="text-center text-danger mb-4">Error: Plan no seleccionado.</p>
-    {% endif %}
-
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-danger{% endif %}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
-
-    {# Solo mostrar el formulario si hay un plan válido #}
-    {% if plan and not error %}
-    <form method="post">
-        {% csrf_token %}
-        {# El plan_id se pasa por la URL, no es necesario en el form #}
-
-        <div class="mb-3">
-            <label for="id_first_name" class="form-label">Tu Nombre</label>
-            <input type="text" name="first_name" class="form-control" id="id_first_name" required>
-        </div>
-        <div class="mb-3">
-            <label for="id_last_name" class="form-label">Tu Apellido</label>
-            <input type="text" name="last_name" class="form-control" id="id_last_name" required>
-        </div>
-         <div class="mb-3">
-            <label for="id_email" class="form-label">Tu Correo Electrónico</label>
-            <input type="email" name="email" class="form-control" id="id_email" required>
-        </div>
-         <div class="mb-3">
-            <label for="id_password" class="form-label">Crea una Contraseña</label>
-            <input type="password" name="password" class="form-control" id="id_password" required>
-            {# TODO: Añadir campo de confirmación de contraseña y validación #}
-        </div>
-        <hr class="my-4">
-        <div class="mb-3">
-            <label for="id_business_name" class="form-label">Nombre de tu Negocio</label>
-            <input type="text" name="business_name" class="form-control" id="id_business_name" required>
+<div class="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-subtle-bg dark:bg-dark-subtle-bg py-12 px-4 sm:px-6 lg:px-8">
+    <div class="w-full max-w-2xl space-y-8 bg-background-light dark:bg-background-dark p-8 md:p-10 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
+        
+        <div class="text-center">
+            <h2 class="text-3xl font-bold tracking-tight text-primary dark:text-white">
+                Comienza con Tivy
+            </h2>
+            <p class="mt-2 text-base text-gray-600 dark:text-gray-400">
+                {% if plan %}
+                    Estás registrándote en el plan <span class="font-bold text-secondary">{{ plan.name }}</span>.
+                {% else %}
+                    Crea tu cuenta y configura tu negocio en minutos.
+                {% endif %}
+            </p>
         </div>
 
-        <button type="submit" class="btn btn-primary-theme mt-3">Crear Cuenta e Iniciar Prueba</button>
-    </form>
-    <p class="text-center text-muted mt-3 small">Al registrarte, aceptas nuestros Términos de Servicio y Política de Privacidad.</p>
-    {% else %}
-     <div class="text-center">
-        <a href="{% url 'select_plan' %}" class="btn btn-secondary">Volver a seleccionar plan</a>
-     </div>
-    {% endif %}
+        {% if messages %}
+            <div class="space-y-2">
+                {% for message in messages %}
+                    <div class="p-4 rounded-lg text-sm font-medium {% if message.tags == 'error' %}bg-red-50 text-red-700 border border-red-200{% else %}bg-green-50 text-green-700 border border-green-200{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form class="mt-8 space-y-6" method="post">
+            {% csrf_token %}
+            
+            <div class="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg space-y-6 border border-gray-100 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-primary dark:text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-secondary">person</span> Tus Datos
+                </h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="id_first_name" class="block text-sm font-medium text-text-light dark:text-gray-300">Nombre</label>
+                        <div class="mt-1">
+                            <input type="text" name="first_name" id="id_first_name" required 
+                                   class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-4 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="id_last_name" class="block text-sm font-medium text-text-light dark:text-gray-300">Apellido</label>
+                        <div class="mt-1">
+                            <input type="text" name="last_name" id="id_last_name" required 
+                                   class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-4 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="id_email" class="block text-sm font-medium text-text-light dark:text-gray-300">Correo Electrónico</label>
+                    <div class="mt-1">
+                        <input type="email" name="email" id="id_email" required 
+                               class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-4 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                               placeholder="ejemplo@negocio.com">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="id_password" class="block text-sm font-medium text-text-light dark:text-gray-300">Contraseña</label>
+                    <div class="mt-1">
+                        <input type="password" name="password" id="id_password" required 
+                               class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-4 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                               placeholder="Mínimo 8 caracteres">
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg space-y-6 border border-gray-100 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-primary dark:text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-secondary">storefront</span> Tu Negocio
+                </h3>
+                
+                <div>
+                    <label for="id_business_name" class="block text-sm font-medium text-text-light dark:text-gray-300">Nombre del Negocio</label>
+                    <div class="mt-1">
+                        <input type="text" name="business_name" id="id_business_name" required 
+                               class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-4 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                               placeholder="Ej: Barbería El Corte, Spa Zen...">
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500">Este nombre aparecerá en tu página de reservas.</p>
+                </div>
+            </div>
+
+            <div class="pt-4">
+                <button type="submit" class="group relative flex w-full justify-center rounded-lg bg-secondary py-4 px-4 text-base font-bold text-primary hover:opacity-90 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 transition-all duration-200">
+                    Crear Cuenta e Iniciar Prueba
+                    <span class="material-symbols-outlined ml-2 text-sm pt-0.5">arrow_forward</span>
+                </button>
+            </div>
+
+            <p class="text-center text-xs text-gray-500 mt-4">
+                Al registrarte, aceptas nuestros <a href="#" class="underline hover:text-primary">Términos de Servicio</a> y <a href="#" class="underline hover:text-primary">Política de Privacidad</a>.
+            </p>
+            
+            <div class="text-center text-sm pt-4 border-t border-gray-200 dark:border-gray-700">
+                ¿Ya tienes cuenta? <a href="{% url 'login' %}" class="font-bold text-primary hover:text-secondary">Inicia Sesión</a>
+            </div>
+        </form>
+    </div>
 </div>
 {% endblock %}

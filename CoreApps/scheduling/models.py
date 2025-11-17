@@ -55,6 +55,59 @@ class Appointment(models.Model):
 
     def __str__(self):
         return f"Cita de {self.customer} con {self.staff_member.name} a las {self.start_time}"
+    
+    def clean(self):
+        # 1. Validación básica: Inicio debe ser antes que Fin
+        if self.start_time and self.end_time and self.start_time >= self.end_time:
+            raise ValidationError({
+                'end_time': "La hora de finalización debe ser posterior a la hora de inicio."
+            })
+
+        # 2. ANTI-CHOQUE DE CITAS
+        # Buscamos si existe alguna cita del MISMO staff que se solape.
+        # Un solapamiento ocurre si: (InicioA < FinB) Y (FinA > InicioB)
+        conflicting_appointments = Appointment.objects.filter(
+            staff_member=self.staff_member,
+            status='SCHEDULED',  # Ignoramos las canceladas, esas no ocupan tiempo real
+            start_time__lt=self.end_time, # La otra cita empieza antes de que esta termine
+            end_time__gt=self.start_time  # La otra cita termina después de que esta empiece
+        )
+
+        # Si estamos EDITANDO una cita existente (self.pk existe), 
+        # debemos excluirnos a nosotros mismos de la búsqueda para no chocar con nuestra propia sombra.
+        if self.pk:
+            conflicting_appointments = conflicting_appointments.exclude(pk=self.pk)
+
+        if conflicting_appointments.exists():
+            raise ValidationError({
+                'start_time': f"El personal {self.staff_member.name} ya tiene otra cita agendada en este horario."
+            })
+
+        # 3. ANTI-CHOQUE CON TIEMPO LIBRE (TimeOffBlock)
+        # Verificamos que no se intente agendar sobre un almuerzo o permiso
+        # Nota: TimeOffBlock debe estar importado o definido en este archivo.
+        # Como TimeOffBlock está definido ABAJO en tu archivo, Django lo resolverá en tiempo de ejecución,
+        # pero para estar 100% seguros, usaremos una importación interna o moveremos la clase TimeOffBlock arriba.
+        # Asumimos que está en el mismo archivo:
+        
+        # Buscamos bloqueos que se solapen
+        conflicting_timeoffs = TimeOffBlock.objects.filter(
+            staff_member=self.staff_member,
+            start_time__lt=self.end_time,
+            end_time__gt=self.start_time
+        )
+
+        if conflicting_timeoffs.exists():
+            reason = conflicting_timeoffs.first().reason or "tiempo reservado"
+            raise ValidationError({
+                'start_time': f"El personal {self.staff_member.name} no está disponible ({reason})."
+            })
+
+    def save(self, *args, **kwargs):
+        # Forzamos la ejecución de clean() antes de guardar.
+        # Esto asegura que la validación corra incluso si creas citas desde la consola o API, no solo desde Admin.
+        self.clean()
+        super().save(*args, **kwargs)
 
 
 class TimeOffBlock(models.Model):

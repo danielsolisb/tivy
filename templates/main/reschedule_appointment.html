@@ -4,99 +4,112 @@
 {% block title %}Reprogramar Cita{% endblock %}
 
 {% block content %}
-{# --- Estilos (sin cambios respecto a la última versión) --- #}
 <style>
     :root {
-        --theme-primary: {{ business.primary_color|default:'#0d6efd' }};
-        --theme-secondary: #f8f9fa;
+        --theme-primary: {{ business.primary_color|default:'#0A2540' }};
     }
-    body { background-color: var(--theme-secondary); }
-    .btn-primary-theme {
-        background-color: var(--theme-primary); border-color: var(--theme-primary); color: white;
+    /* Estilos reutilizados para consistencia */
+    .nav-btn {
+        background-color: white;
+        color: var(--theme-primary);
+        border: 1px solid #e2e8f0;
     }
-     .btn-primary-theme:hover { opacity: 0.9; background-color: var(--theme-primary); border-color: var(--theme-primary); color: white; }
-    .slot-button {
-        display: block; /* Para que ocupen todo el ancho */
-        width: 100%;
-        margin-bottom: 0.75rem; /* Espacio entre botones */
+    .nav-btn:hover {
+        background-color: #F6F9FC;
+        border-color: var(--theme-primary);
+    }
+    .slot-btn {
+        border: 1px solid #e2e8f0;
+        color: #4B5563;
+        background: white;
+        transition: all 0.2s;
+    }
+    .slot-btn:hover {
         border-color: var(--theme-primary);
         color: var(--theme-primary);
-        text-align: center;
-        padding: 0.75rem;
-        border-radius: 8px;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    .slot-button:hover {
+    .slot-btn:active {
         background-color: var(--theme-primary);
         color: white;
     }
-    .current-appointment-card { background-color: white; border-radius: 10px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid #eee; }
-    .schedule-container { background-color: white; border-radius: 10px; padding: 2rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-    /* Estilo para los botones de navegación de fecha */
-    .date-nav-btn {
-        font-size: 0.9rem; /* Botones un poco más pequeños */
-    }
 </style>
 
-{# --- Contenedor Principal con Padding Inferior --- #}
-<div class="container mt-4 pb-5"> 
-    <h2 class="text-center mb-4">Reprogramar Cita</h2>
-
-    {# --- Resumen de la Cita Actual (sin cambios) --- #}
-    <div class="current-appointment-card">
-        <h5>Cita Actual</h5>
-        <p><strong>Servicio:</strong> {{ service.name }}</p>
-        <p><strong>Profesional:</strong> {{ staff_member.name }}</p>
-        <p><strong>Fecha y Hora:</strong> {{ appointment.start_time|date:"l, d \d\e F" }} a las {{ appointment.start_time|time:"H:i A" }}</p>
-    </div>
-
-    {# --- Mensajes (sin cambios) --- #}
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-danger{% endif %}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
-
-    {# --- Contenedor del Calendario y Horarios --- #}
-    <div class="schedule-container">
+<div class="min-h-[calc(100vh-4rem)] bg-subtle-bg dark:bg-dark-subtle-bg py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl mx-auto">
         
-        {# --- NUEVO Selector de Fecha (Estilo Imagen 2) --- #}
-        <h5 class="text-center mb-3">Selecciona una nueva fecha</h5>
-        <div class="text-center mb-3"> {# Contenedor para la fecha #}
-            <span class="fw-bold fs-5">{{ target_date_display }}</span>
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-bold text-primary dark:text-white">Reprogramar Cita</h1>
+            <p class="mt-2 text-gray-600 dark:text-gray-400">Selecciona una nueva fecha y hora para tu servicio.</p>
         </div>
-        <div class="d-flex justify-content-between align-items-center mb-4"> {# Contenedor para los botones #}
-            <a href="{% url 'reschedule_appointment' pk=appointment.pk %}?date={{ prev_date_str }}" 
-               class="btn btn-outline-secondary date-nav-btn {% if not can_go_back %}disabled{% endif %}">
-               &leftarrow; Día Anterior
-            </a>
-            <a href="{% url 'reschedule_appointment' pk=appointment.pk %}?date={{ next_date_str }}" 
-               class="btn btn-outline-secondary date-nav-btn">
-               Siguiente Día &rightarrow;
+
+        <div class="bg-white dark:bg-background-dark rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-primary">
+                    <span class="material-symbols-outlined">event_repeat</span>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide font-semibold">Cita Actual</p>
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">
+                        {{ appointment.start_time|date:"l, d F" }} a las {{ appointment.start_time|time:"H:i" }}
+                    </h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">
+                        {{ appointment.service.name }} con {{ appointment.staff_member.name }}
+                    </p>
+                </div>
+            </div>
+            <a href="{% url 'booking_confirmed' pk=appointment.pk %}" class="text-sm font-medium text-gray-500 hover:text-primary underline decoration-dotted">
+                Cancelar cambio
             </a>
         </div>
-        {# --- FIN Nuevo Selector --- #}
 
-        {# --- Nueva Disposición de Horarios (Columna, sin cambios) --- #}
-        <h4 class="text-center mb-4">Horarios Disponibles</h4>
-        
+        <div class="bg-white dark:bg-background-dark rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-8 flex items-center justify-between sticky top-20 z-30">
+            <a href="?date={{ prev_date_str }}" class="nav-btn p-2 rounded-full shadow-sm flex items-center justify-center w-10 h-10">
+                <span class="material-symbols-outlined">chevron_left</span>
+            </a>
+            
+            <div class="text-center">
+                <h3 class="text-lg font-bold text-primary dark:text-white capitalize">{{ target_date_display }}</h3>
+                {% if target_date == appointment.start_time.date %}
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">Día actual de la cita</span>
+                {% endif %}
+            </div>
+
+            <a href="?date={{ next_date_str }}" class="nav-btn p-2 rounded-full shadow-sm flex items-center justify-center w-10 h-10">
+                <span class="material-symbols-outlined">chevron_right</span>
+            </a>
+        </div>
+
         <form method="post">
             {% csrf_token %}
             <input type="hidden" name="selected_date" value="{{ target_date_str }}">
-            <div class="row justify-content-center">
-                <div class="col-md-8 col-lg-6"> 
+            
+            <div class="bg-white dark:bg-background-dark rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-4 uppercase tracking-wider">Horarios Disponibles</h4>
+                
+                <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                     {% for slot in available_slots %}
+                        {# Ocultamos la hora que ya tiene reservada para que no la elija de nuevo por error #}
                         {% if target_date != appointment.start_time.date or slot != appointment.start_time|time:"H:i" %}
-                            <button type="submit" name="selected_time" value="{{ slot }}" class="btn slot-button">{{ slot }}</button>
+                            <button type="submit" name="selected_time" value="{{ slot }}" 
+                                    class="slot-btn py-3 px-2 rounded-lg text-sm font-bold text-center hover:shadow-md">
+                                {{ slot }}
+                            </button>
                         {% endif %}
                     {% empty %}
-                        <div class="alert alert-light text-center border">No hay horarios disponibles para este día.</div>
+                        <div class="col-span-full py-12 text-center">
+                            <div class="inline-block p-3 rounded-full bg-gray-50 mb-3">
+                                <span class="material-symbols-outlined text-gray-400">block</span>
+                            </div>
+                            <p class="text-gray-500 font-medium">No hay horarios disponibles para este día.</p>
+                            <a href="?date={{ next_date_str }}" class="text-primary text-sm font-semibold hover:underline mt-2 inline-block">Buscar en el siguiente día</a>
+                        </div>
                     {% endfor %}
                 </div>
             </div>
-             <div class="text-center mt-4">
-                 <a href="{% url 'booking_confirmed' pk=appointment.pk %}" class="btn btn-link text-secondary">← Volver a la confirmación</a>
-             </div>
         </form>
-    </div> {# Fin schedule-container #}
-</div> {# Fin container principal #}
+
+    </div>
+</div>
 {% endblock %}

@@ -1,95 +1,121 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Paso 2: Elige Profesional y Horario{% endblock %}
+{% block title %}Elige Horario - {{ service.name }}{% endblock %}
 
 {% block content %}
-{# --- Bloque para definir los colores del tema --- #}
 <style>
     :root {
-        --theme-primary: {{ business.primary_color|default:'#0d6efd' }};
-        --theme-secondary: {{ business.secondary_color|default:'#6c757d' }};
+        --theme-primary: {{ business.primary_color|default:'#0A2540' }};
     }
-    .date-selector .btn-primary {
-        background-color: var(--theme-primary);
-        border-color: var(--theme-primary);
+    .nav-btn {
+        background-color: white; color: var(--theme-primary); border: 1px solid #e2e8f0;
     }
-    .slot-button {
+    .nav-btn:hover {
+        background-color: #F6F9FC; border-color: var(--theme-primary);
+    }
+    
+    /* Estilo del Slot */
+    .slot-btn {
+        border: 1px solid #e2e8f0;
+        color: #4B5563;
+        background: white;
+        transition: all 0.2s;
+        width: 100%; /* Asegura que llene la celda */
+    }
+    .slot-btn:hover {
         border-color: var(--theme-primary);
         color: var(--theme-primary);
-    }
-    .slot-button:hover {
-        background-color: var(--theme-primary);
-        color: white;
-    }
-    .staff-card {
-        border: 1px solid #e0e0e0;
-        border-radius: 15px;
-        margin-bottom: 1.5rem;
-        padding: 1.5rem;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
 </style>
 
-<div class="container mt-4">
-    <h2 class="text-center mb-4">Elige tu Profesional y Horario</h2>
-    <p class="text-center text-muted mb-4">Estás agendando: <strong>{{ service.name }}</strong></p>
-
-    {# --- Selector de Fecha --- #}
-    <div class="date-selector d-flex justify-content-center flex-wrap gap-2 mb-5">
-        {% for day in available_days %}
-            <a href="?date={{ day.date_str }}" 
-               class="btn {% if day.date_str == target_date_str %}btn-primary{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 py-2">
-                <strong>{{ day.name }}</strong><br>
-                <small>{{ day.date|date:"d M" }}</small>
-            </a>
-        {% endfor %}
-    </div>
-
-    {# --- Lista de Profesionales y Horarios --- #}
-    <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="selected_date" value="{{ target_date_str }}">
-
-        {% for item in staff_with_slots %}
-        <div class="staff-card">
-            <div class="row align-items-center">
-                <div class="col-md-3 text-center text-md-start mb-3 mb-md-0">
-                    {% if item.staff.photo %}
-                        <img src="{{ item.staff.photo.url }}" class="rounded-circle img-fluid" alt="{{ item.staff.name }}" style="width: 80px; height: 80px; object-fit: cover;">
-                    {% else %}
-                         <img src="{% static 'images/default-profile.png' %}" class="rounded-circle img-fluid" alt="Foto por defecto" style="width: 80px; height: 80px;">
-                    {% endif %}
-                    <h5 class="mt-2 mb-0">{{ item.staff.name }}</h5>
-                    {# <p class="text-muted small">{{ item.staff.bio|truncatewords:10 }}</p> #}
-                </div>
-                <div class="col-md-9">
-                    <div class="d-flex flex-wrap gap-2 justify-content-center justify-content-md-start">
-                        {% for slot in item.slots %}
-                            <button type="submit" name="selected_time" value="{{ slot }}" 
-                                    formaction="{{ request.path }}?date={{ target_date_str }}" 
-                                    formmethod="post" 
-                                    onclick="document.getElementById('staff-id-{{ item.staff.id }}').checked = true;"
-                                    class="btn slot-button rounded-pill px-3">
-                                {{ slot }}
-                            </button>
-                        {% endfor %}
-                    </div>
-                    {# Input oculto para enviar el ID del staff al hacer clic en un horario #}
-                    <input type="radio" name="staff_member_id" value="{{ item.staff.id }}" id="staff-id-{{ item.staff.id }}" class="d-none" required>
-                </div>
-            </div>
-        </div>
-        {% empty %}
-        <div class="alert alert-info text-center">
-            No hay profesionales con horarios disponibles para <strong>{{ service.name }}</strong> el <strong>{{ target_date_display }}</strong>.
-            <br>Por favor, selecciona otra fecha.
-        </div>
-        {% endfor %}
+<div class="min-h-[calc(100vh-4rem)] bg-subtle-bg dark:bg-dark-subtle-bg py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto">
         
-        {# Botón de Confirmar Reserva (opcional, ya que cada slot es un submit) #}
-        {# <button type="submit" class="btn btn-primary-theme btn-lg w-100 mt-4">Confirmar Reserva</button> #}
-    </form>
+        <div class="mb-8 text-center">
+            <h2 class="text-2xl font-bold text-primary dark:text-white">Elige una hora</h2>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">para <span class="font-semibold text-primary dark:text-white">{{ service.name }}</span> ({{ service.duration }})</p>
+        </div>
 
+        <div class="bg-white dark:bg-background-dark rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-8 flex items-center justify-between sticky top-20 z-30">
+            {% if prev_date_str %}
+            <a href="?date={{ prev_date_str }}&service_id={{ service.id }}" class="nav-btn p-2 rounded-full shadow-sm flex items-center justify-center w-10 h-10">
+                <span class="material-symbols-outlined">chevron_left</span>
+            </a>
+            {% else %}
+            <div class="w-10 h-10"></div> {% endif %}
+            
+            <div class="text-center">
+                <h3 class="text-lg font-bold text-primary dark:text-white capitalize">{{ target_date_display }}</h3>
+                {% if is_today %}
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Hoy</span>
+                {% endif %}
+            </div>
+
+            <a href="?date={{ next_date_str }}&service_id={{ service.id }}" class="nav-btn p-2 rounded-full shadow-sm flex items-center justify-center w-10 h-10">
+                <span class="material-symbols-outlined">chevron_right</span>
+            </a>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mb-6 p-4 rounded-lg bg-red-50 text-red-700 border border-red-200 text-center">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="space-y-6">
+            {% for item in availability_data %}
+                <div class="bg-white dark:bg-background-dark rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    
+                    <div class="p-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700 flex items-center gap-4">
+                        <div class="flex-shrink-0">
+                            {% if item.staff.get_photo_url %}
+                                <img src="{{ item.staff.get_photo_url }}" alt="{{ item.staff.name }}" class="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm">
+                            {% else %}
+                                <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-lg">
+                                    {{ item.staff.name|slice:":1" }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-text-light dark:text-white">{{ item.staff.name }}</h4>
+                            <p class="text-xs text-gray-500">Disponible</p>
+                        </div>
+                    </div>
+
+                    <div class="p-6">
+                        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                            {% for slot in item.slots %}
+                                <form method="post" action="?date={{ target_date_str }}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="service_id" value="{{ service.id }}">
+                                    <input type="hidden" name="staff_member_id" value="{{ item.staff.id }}">
+                                    <input type="hidden" name="selected_time" value="{{ slot }}">
+                                    
+                                    <button type="submit" class="slot-btn py-2 px-1 rounded-lg text-sm font-medium text-center cursor-pointer">
+                                        {{ slot }}
+                                    </button>
+                                </form>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="text-center py-12 bg-white dark:bg-background-dark rounded-xl shadow-sm">
+                    <div class="inline-block p-3 rounded-full bg-gray-100 mb-4">
+                        <span class="material-symbols-outlined text-gray-400 text-3xl">event_busy</span>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white">Sin horarios disponibles</h3>
+                    <p class="text-gray-500 mt-1">No hay citas libres para esta fecha.</p>
+                    <a href="?date={{ next_date_str }}&service_id={{ service.id }}" class="mt-4 inline-block text-primary font-semibold hover:underline">Ver siguiente día &rarr;</a>
+                </div>
+            {% endfor %}
+        </div>
+
+    </div>
 </div>
 {% endblock %}

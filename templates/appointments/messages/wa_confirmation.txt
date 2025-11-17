@@ -1,0 +1,16 @@
+¡Hola {{ customer_name }}! 👋
+
+Tu cita en *{{ business_name }}* ha sido confirmada:
+
+✨ **Servicio:** {{ service.name }}
+👨‍💼 **Con:** {{ staff.name }}
+🗓️ **Fecha:** {{ date }}
+⏰ **Hora:** {{ time }}
+
+{% if appointment.service.location_type == 'DOMICILIO' %}
+📍 **Lugar:** Tu dirección ({{ customer.address_line }})
+{% else %}
+📍 **Lugar:** {{ business.address }}
+{% endif %}
+
+¡Te esperamos!

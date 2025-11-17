@@ -1,321 +1,284 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
-{% block title %}Tivy: Agendamiento rápido, simple, tuyo.{% endblock %}
+{% block title %}Tivy: rápido, simple, tuyo.{% endblock %}
 
 {% block content %}
-<style>
-    /* Colores sugeridos (ajustalos a tu gusto) */
-    :root {
-        --tivy-blue: #3B82F6; /* Azul principal */
-        --tivy-teal: #14B8A6; /* Verde azulado para acentos */
-        --tivy-light-gray: #F3F4F6; /* Fondo suave secciones */
-        --tivy-dark-gray: #4B5563; /* Texto principal */
-        --tivy-medium-gray: #6B7280; /* Texto secundario */
-    }
-
-    body {
-        color: var(--tivy-dark-gray);
-    }
-    .navbar { /* Asegurarnos que la barra de nav use el ancho completo */
-        width: 100%;
-    }
-    .hero-section {
-        background-color: var(--tivy-light-gray);
-        padding: 4rem 0;
-    }
-    .hero-section h1 {
-        font-weight: bold;
-        color: var(--tivy-dark-gray);
-    }
-    .hero-section .lead {
-        color: var(--tivy-medium-gray);
-        margin-bottom: 2rem;
-    }
-    .btn-primary-theme {
-        background-color: var(--tivy-blue);
-        border-color: var(--tivy-blue);
-        color: white;
-        padding: 0.75rem 1.5rem;
-        font-weight: 500;
-        border-radius: 8px;
-    }
-     .btn-primary-theme:hover {
-        opacity: 0.9;
-        background-color: var(--tivy-blue);
-        border-color: var(--tivy-blue);
-        color: white;
-    }
-    .btn-secondary-theme {
-         background-color: white;
-         border-color: var(--tivy-blue);
-         color: var(--tivy-blue);
-         padding: 0.75rem 1.5rem;
-         font-weight: 500;
-         border-radius: 8px;
-    }
-     .btn-secondary-theme:hover {
-         background-color: #EFF6FF; /* Azul muy claro */
-         border-color: var(--tivy-blue);
-         color: var(--tivy-blue);
-     }
-
-    .section-padding {
-        padding: 4rem 0;
-    }
-    .feature-icon {
-        font-size: 2rem;
-        color: var(--tivy-blue);
-        margin-bottom: 1rem;
-        display: inline-block;
-    }
-    .testimonial-card {
-        background-color: white;
-        border-radius: 15px;
-        padding: 2rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        height: 100%; /* Para alinear tarjetas */
-    }
-    .testimonial-card img {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        margin-bottom: 1rem;
-    }
-    .pricing-card {
-        background-color: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 15px;
-        padding: 2rem;
-        text-align: center;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-    }
-    .pricing-card.popular {
-        border-color: var(--tivy-blue);
-        border-width: 2px;
-        position: relative;
-        overflow: hidden; /* Para la cinta 'Más Popular' */
-    }
-    .pricing-card.popular::before { /* Cinta 'Más Popular' */
-        content: "MÁS POPULAR";
-        position: absolute;
-        top: 15px;
-        right: -35px;
-        background-color: var(--tivy-blue);
-        color: white;
-        padding: 5px 30px;
-        font-size: 0.7rem;
-        font-weight: bold;
-        transform: rotate(45deg);
-    }
-    .pricing-card ul {
-        list-style: none;
-        padding: 0;
-        margin: 1.5rem 0;
-        text-align: left;
-        flex-grow: 1; /* Empuja el botón hacia abajo */
-    }
-    .pricing-card li {
-        margin-bottom: 0.75rem;
-        color: var(--tivy-medium-gray);
-    }
-     .pricing-card li i { /* Icono check */
-         color: var(--tivy-teal);
-         margin-right: 0.5rem;
-     }
-    .cta-section {
-        background-color: var(--tivy-blue);
-        color: white;
-        padding: 4rem 0;
-        border-radius: 15px;
-    }
-    footer {
-        padding: 2rem 0;
-        text-align: center;
-        font-size: 0.9rem;
-        color: var(--tivy-medium-gray);
-    }
-
-</style>
-
-{# --- Sección Hero --- #}
-<section class="hero-section">
-    <div class="container">
-        <div class="row align-items-center">
-            <div class="col-lg-6">
-                <h1>Tivy: rápido, simple, tuyo.</h1>
-                <p class="lead">Simplifica la programación de citas y concentrate en lo que más importa: hacer crecer tu negocio.</p>
-                <a href="{% url 'select_plan' %}" class="btn btn-primary-theme">Empieza tu prueba gratis</a>
-            </div>
-            <div class="col-lg-6 text-center mt-4 mt-lg-0">
-                {# Placeholder para la imagen, reemplaza con tu imagen #}
-                <img src="{% static 'images/hero-placeholder.jpg' %}" alt="Calendario Tivy" class="img-fluid" style="max-width: 400px;">
-            </div>
-        </div>
-    </div>
-</section>
-
-{# --- Sección Cómo Funciona --- #}
-<section class="section-padding">
-    <div class="container text-center">
-        <h2 class="mb-5">Cómo funciona</h2>
-        <div class="row g-4">
-            <div class="col-md-4">
-                <span class="feature-icon"><i class="fas fa-user-edit"></i></span> {# Reemplaza con iconos adecuados #}
-                <h5>1. Crea tu perfil</h5>
-                <p class="text-muted">Configura tu negocio, servicios, horarios y logo en cuestión de minutos.</p>
-            </div>
-            <div class="col-md-4">
-                 <span class="feature-icon"><i class="fas fa-share-alt"></i></span>
-                <h5>2. Comparte tu enlace</h5>
-                <p class="text-muted">Envía tu enlace único a tus clientes a través de redes sociales, email o tu sitio web.</p>
-            </div>
-            <div class="col-md-4">
-                 <span class="feature-icon"><i class="fas fa-calendar-check"></i></span>
-                <h5>3. Recibe reservas</h5>
-                <p class="text-muted">Tus clientes ven tu disponibilidad en tiempo real y reservan citas 24/7, sin llamarte.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-{# --- Sección Solución Perfecta --- #}
-<section class="section-padding bg-light">
-    <div class="container text-center">
-         <h2 class="mb-5">Una solución perfecta para tu negocio</h2>
-         <div class="row g-4 justify-content-center">
-            <div class="col-md-4 col-lg-3">
-                <span class="feature-icon"><i class="fas fa-cut"></i></span>
-                <h6>Salones de Belleza</h6>
-                 <p class="small text-muted">Agenda cortes, tintes y más. Envía recordatorios automáticos para reducir las ausencias.</p>
-            </div>
-             <div class="col-md-4 col-lg-3">
-                 <span class="feature-icon"><i class="fas fa-spa"></i></span>
-                <h6>Spas y Bienestar</h6>
-                <p class="small text-muted">Gestiona masajes, terapias y paquetes. Ofrece una experiencia relajante desde el primer momento.</p>
-             </div>
-             <div class="col-md-4 col-lg-3">
-                 <span class="feature-icon"><i class="fas fa-user-md"></i></span>
-                <h6>Consultorios Médicos</h6>
-                <p class="small text-muted">Optimiza la agenda de pacientes y permite la reserva online de forma segura y eficiente.</p>
-             </div>
-              <div class="col-md-4 col-lg-3">
-                  <span class="feature-icon"><i class="fas fa-home"></i></span>
-                 <h6>Servicios a Domicilio</h6>
-                 <p class="small text-muted">Define tus zonas, gestiona tus servicios de fontanería, limpieza o tutorías fácilmente.</p>
-             </div>
-         </div>
-    </div>
-</section>
-
-{# --- Sección Testimonios --- #}
-<section class="section-padding">
-    <div class="container">
-        <h2 class="text-center mb-5">Lo que nuestros clientes opinan</h2>
-        <div class="row g-4">
-            {# Ejemplo Testimonio 1 #}
-            <div class="col-md-4 d-flex align-items-stretch">
-                <div class="testimonial-card">
-                    <img src="{% static 'images/testimonio1.jpg' %}" alt="Cliente 1">
-                    <p class="fst-italic mb-3">"Tivy ha transformado la gestión de mi peluquería. Ahora dedico menos tiempo al teléfono y mis citas 'no-show' han disminuido un 80% gracias a los recordatorios automáticos."</p>
-                    <strong>Ana García</strong><br>
-                    <small class="text-muted">Propietaria, Salón Estilo</small>
+<section class="py-20 md:py-32">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid md:grid-cols-2 gap-8 md:gap-12 items-center pt-8 md:pt-0">
+            
+            <div class="flex flex-col gap-8 order-2 md:order-1 items-center md:items-start">
+                <div class="flex flex-col gap-4 text-center md:text-left">
+                    <h1 class="text-5xl md:text-6xl lg:text-7xl font-black leading-tight tracking-tighter text-primary dark:text-white">
+                        Tivy: rápido, simple, tuyo.
+                    </h1>
+                    <h2 class="text-lg md:text-xl font-normal leading-normal text-text-light dark:text-text-dark">
+                        Elimina las idas y venidas y céntrate en lo que importa. Tivy automatiza tus citas, recordatorios y calendarios de equipo en una sola plataforma.
+                    </h2>
+                </div>
+                <div class="flex justify-center md:justify-start">
+                    <a href="{% url 'select_plan' %}" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity">
+                        <span class="truncate">Crear mi cuenta gratis</span>
+                    </a>
                 </div>
             </div>
-            {# Ejemplo Testimonio 2 #}
-             <div class="col-md-4 d-flex align-items-stretch">
-                <div class="testimonial-card">
-                     <img src="{% static 'images/testimonio2.jpg' %}" alt="Cliente 2">
-                    <p class="fst-italic mb-3">"Simple, intuitivo y potente. Ahora paso menos tiempo organizando mi agenda y más tiempo con mis pacientes. Lo recomiendo totalmente."</p>
-                    <strong>Carlos Martínez</strong><br>
-                    <small class="text-muted">Fisioterapeuta</small>
-                </div>
+
+            <div class="w-full h-80 md:h-auto md:aspect-square order-1 md:order-2">
+                <img src="{% static 'images/Main/seccion1.jpg' %}" alt="Calendario Tivy" 
+                     class="w-full h-full object-cover rounded-xl">
             </div>
-            {# Ejemplo Testimonio 3 #}
-             <div class="col-md-4 d-flex align-items-stretch">
-                <div class="testimonial-card">
-                     <img src="{% static 'images/testimonio3.jpg' %}" alt="Cliente 3">
-                    <p class="fst-italic mb-3">"Como profesional a domicilio, Tivy me ayuda a definir mis zonas y darles a mis clientes la facilidad para agendar mis servicios."</p>
-                    <strong>Javier Rodríguez</strong><br>
-                    <small class="text-muted">Técnico Informático</small>
-                </div>
-            </div>
+
         </div>
     </div>
 </section>
 
-{# --- Sección Planes --- #}
-<section class="section-padding bg-light">
-    <div class="container">
-        <h2 class="text-center mb-5">Planes simples, sin sorpresas</h2>
-         <div class="row g-4 justify-content-center">
-             {# Plan Básico #}
-             <div class="col-md-6 col-lg-4 d-flex align-items-stretch">
-                 <div class="pricing-card">
-                    <h5>Básico</h5>
-                    <p class="h1 fw-bold mb-3">$10<span class="fs-6 text-muted">/mes</span></p>
-                    <ul>
-                        <li><i class="fas fa-check"></i> 1 Calendario (1 Staff)</li>
-                        <li><i class="fas fa-check"></i> Página de reservas</li>
-                        <li><i class="fas fa-check"></i> Recordatorios por email</li>
-                    </ul>
-                     <a href="#" class="btn btn-secondary-theme mt-auto">Empezar</a>
-                 </div>
-             </div>
-              {# Plan Profesional (Popular) #}
-             <div class="col-md-6 col-lg-4 d-flex align-items-stretch">
-                 <div class="pricing-card popular">
-                     <h5>Profesional</h5>
-                    <p class="h1 fw-bold mb-3">$25<span class="fs-6 text-muted">/mes</span></p>
-                    <ul>
-                         <li><i class="fas fa-check"></i> 5 Calendarios (5 Staff)</li>
-                        <li><i class="fas fa-check"></i> Página personalizada</li>
-                        <li><i class="fas fa-check"></i> Recordatorios Email/SMS</li>
-                         <li><i class="fas fa-check"></i> Pagos online</li>
-                    </ul>
-                     <a href="#" class="btn btn-primary-theme mt-auto">Elegir plan</a>
-                 </div>
-             </div>
-              {# Plan Empresa #}
-             <div class="col-md-6 col-lg-4 d-flex align-items-stretch">
-                 <div class="pricing-card">
-                     <h5>Empresa</h5>
-                    <p class="h1 fw-bold mb-3">$50<span class="fs-6 text-muted">/mes</span></p>
-                    <ul>
-                        <li><i class="fas fa-check"></i> Calendarios ilimitados</li>
-                         <li><i class="fas fa-check"></i> Marca blanca</li>
-                        <li><i class="fas fa-check"></i> Soporte prioritario</li>
-                         <li><i class="fas fa-check"></i> Analíticas avanzadas</li>
-                    </ul>
-                     <a href="#" class="btn btn-secondary-theme mt-auto">Contactar</a>
-                 </div>
-             </div>
-         </div>
-    </div>
-</section>
 
-{# --- Sección Final CTA --- #}
-<section class="section-padding">
-    <div class="container">
-        <div class="cta-section text-center">
-            <h2 class="mb-3">¿Listo para optimizar tu agenda?</h2>
-            <p class="lead mb-4">Únete a cientos de negocios que ya confían en Tivy para facilitar su crecimiento.<br>Aprovecha la oportunidad de la prueba gratis.</p>
-            <a href="{% url 'select_plan' %}" class="btn btn-light btn-lg">Empieza tu prueba gratis</a>
+   
+    <!-- Sección de Logos de Confianza 
+    <section class="py-8 border-b border-gray-100 dark:border-gray-800">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <p class="text-base font-medium leading-normal text-center text-gray-500 dark:text-gray-400">Con la confianza de negocios modernos</p>
+            <div class="flex flex-wrap items-center justify-center gap-8 mt-6 opacity-50 grayscale">
+                <div class="h-8 w-24 bg-gray-300 rounded"></div>
+                <div class="h-8 w-24 bg-gray-300 rounded"></div>
+                <div class="h-8 w-24 bg-gray-300 rounded"></div>
+            </div>
         </div>
-    </div>
-</section>
+    </section>
+    -->
 
-{# --- Footer --- #}
-<footer>
-    <div class="container">
-        © {% now "Y" %} Tivy, Inc. Todos los derechos reservados.
-    </div>
-</footer>
+ <section class="py-20 md:py-24">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-primary dark:text-white">Cómo funciona</h2>
+                    <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">Pon tu negocio en piloto automático en tres pasos.</p>
+                </div>
+                
+                <div class="grid md:grid-cols-3 gap-12 relative">
+                    <div class="hidden md:block absolute top-8 left-[16%] right-[16%] h-0.5 bg-gray-200 dark:bg-gray-700 -z-10"></div>
 
-{# --- Dependencia Opcional: Font Awesome para iconos --- #}
-{# Añade esto en tu base.html si quieres usar los iconos de ejemplo #}
-{# <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"> #}
+                    <div class="flex flex-col items-center text-center group">
+                        <div class="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                            <span class="material-symbols-outlined text-3xl">storefront</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-primary dark:text-white mb-3">1. Crea tu perfil</h3>
+                        <p class="text-gray-600 dark:text-gray-400">Configura tu negocio, servicios, horarios y logo en cuestión de minutos.</p>
+                    </div>
 
+                    <div class="flex flex-col items-center text-center group">
+                        <div class="w-16 h-16 bg-white border-2 border-secondary text-secondary rounded-full flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                            <span class="material-symbols-outlined text-3xl">share</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-primary dark:text-white mb-3">2. Comparte tu enlace</h3>
+                        <p class="text-gray-600 dark:text-gray-400">Envía tu enlace único o el código QR para tus clientes a través de redes sociales, email o tu sitio web.</p>
+                    </div>
+
+                    <div class="flex flex-col items-center text-center group">
+                        <div class="w-16 h-16 bg-secondary text-primary rounded-full flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                            <span class="material-symbols-outlined text-3xl">calendar_check</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-primary dark:text-white mb-3">3. Recibe reservas</h3>
+                        <p class="text-gray-600 dark:text-gray-400">Tus clientes ven tu disponibilidad en tiempo real y reservan citas 24/7, sin llamarte.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-20 md:py-24 bg-subtle-bg dark:bg-dark-subtle-bg">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-primary dark:text-white">Deja de Perder Tiempo en el Caos</h2>
+                    <p class="mt-4 text-lg text-text-light dark:text-text-dark">La programación manual consume tus recursos. Descubre cómo Tivy convierte la frustración en eficiencia.</p>
+                </div>
+                <div class="grid md:grid-cols-2 gap-8 lg:gap-16">
+                    <div class="p-8 bg-background-light dark:bg-background-dark rounded-xl shadow-sm">
+                        <h3 class="text-2xl font-bold text-red-500">El Problema</h3>
+                        <ul class="mt-6 space-y-4">
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-red-500 mt-1">cancel</span>
+                                <div>
+                                    <h4 class="font-semibold">Pérdida de Ingresos y ausencias</h4>
+                                    <p class="text-gray-600 dark:text-gray-400">Las citas perdidas y las cancelaciones de última hora impactan tus resultados.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-red-500 mt-1">cancel</span>
+                                <div>
+                                    <h4 class="font-semibold">Sobrecarga Administrativa</h4>
+                                    <p class="text-gray-600 dark:text-gray-400">Interminables cadenas de WhatsApp para encontrar un horario adecuado.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-red-500 mt-1">cancel</span>
+                                <div>
+                                    <h4 class="font-semibold">Mala experiencia para el cliente</h4>
+                                    <p class="text-gray-600 dark:text-gray-400">Un proceso de reserva engorroso puede frustrar a los clientes potenciales antes incluso de hablar contigo.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="p-8 bg-background-light dark:bg-background-dark rounded-xl shadow-sm border-2 border-secondary">
+                        <h3 class="text-2xl font-bold text-secondary">La Solución con Tivy</h3>
+                        <ul class="mt-6 space-y-4">
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-secondary mt-1">check_circle</span>
+                                <div>
+                                    <h4 class="font-semibold">Recordatorios automatizados</h4>
+                                    <p class="text-gray-600 dark:text-gray-400">Reduce drásticamente las ausencias con recordatorios automáticos por WhatsApp y correo electrónico para tus clientes.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-secondary mt-1">check_circle</span>
+                                <div>
+                                    <h4 class="font-semibold">Plataforma centralizada</h4>
+                                    <p class="text-gray-600 dark:text-gray-400">Gestiona la disponibilidad y las reservas de todo tu equipo desde un único panel intuitivo.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-secondary mt-1">check_circle</span>
+                                <div>
+                                    <h4 class="font-semibold">Fidelización Integrada</h4>
+                                    <p class="text-gray-600 dark:text-gray-400">Tus clientes acumulan puntos automáticamente con cada cita. Haz que vuelvan.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-20 md:py-24">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-20">
+                
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div class="order-2 md:order-1">
+                        <span class="inline-block px-3 py-1 text-sm font-semibold text-secondary bg-secondary/10 rounded-full mb-3">Automatización</span>
+                        <h3 class="text-3xl font-bold text-primary dark:text-white mb-4">Recordatorios por WhatsApp y Correo</h3>
+                        <p class="text-lg text-text-light dark:text-text-dark">
+                            Olvida los seguimientos manuales. Tivy envía automáticamente mensajes de WhatsApp y correos electrónicos a tus clientes antes de la cita, reduciendo las ausencias drásticamente y manteniendo tu agenda llena.
+                        </p>
+                    </div>
+                    <div class="w-full h-80 md:h-auto md:aspect-square order-1 md:order-2">
+                       <img src="{% static 'images/Main/whatsapp_notificador.jpg' %}" alt="Calendario Tivy" 
+                            class="w-full h-full object-cover rounded-xl">
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div class="w-full h-80 md:h-auto md:aspect-square order-1 md:order-2">
+                       <img src="{% static 'images/Main/google_calendar.png' %}" alt="Calendario Tivy" 
+                            class="w-full h-full object-cover rounded-xl">
+                    </div>
+                    <div>
+                        <span class="inline-block px-3 py-1 text-sm font-semibold text-secondary bg-secondary/10 rounded-full mb-3">Experiencia del Cliente</span>
+                        <h3 class="text-3xl font-bold text-primary dark:text-white mb-4">Integrado para tu Cliente</h3>
+                        <p class="text-lg text-text-light dark:text-text-dark">
+                            Facilita la vida de tus usuarios. Una vez confirmada la reserva, tus clientes pueden <strong>guardar la cita directamente en su Google Calendar</strong> con un solo clic. Una experiencia profesional que asegura su asistencia y compromiso.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div class="order-2 md:order-1">
+                        <span class="inline-block px-3 py-1 text-sm font-semibold text-secondary bg-secondary/10 rounded-full mb-3">Personalización</span>
+                        <h3 class="text-3xl font-bold text-primary dark:text-white mb-4">Tu Marca, Tu Estilo</h3>
+                        <p class="text-lg text-text-light dark:text-text-dark">Refleja tu identidad con una página de reservas personalizada. Añade tu logo, colores de marca y fotos de tus servicios para crear una experiencia única.</p>
+                    </div>
+                    <div class="w-full h-80 md:h-auto md:aspect-square order-1 md:order-2">
+                       <img src="{% static 'images/Main/styles.jpeg' %}" alt="Calendario Tivy" 
+                            class="w-full h-full object-cover rounded-xl">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-20 md:py-24 bg-subtle-bg dark:bg-dark-subtle-bg" id="precios">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-primary dark:text-white">Encuentra el Plan Perfecto</h2>
+                    <p class="mt-4 text-lg text-text-light dark:text-text-dark">Precios transparentes para hacer crecer tu negocio.</p>
+                </div>
+
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 items-start justify-center">
+                    {% for plan in plans %}
+                        <div class="p-8 bg-background-light dark:bg-background-dark rounded-xl h-full flex flex-col relative overflow-hidden
+                                    {% if plan.name == 'Profesional' %}
+                                        shadow-lg border-2 border-secondary transform md:-translate-y-4 z-10
+                                    {% else %}
+                                        shadow-md border border-gray-200 dark:border-gray-700
+                                    {% endif %}">
+
+                            {% if plan.name == 'Profesional' %}
+                                <div class="absolute top-0 right-0 text-xs font-bold bg-secondary text-primary px-4 py-1 rounded-bl-lg">
+                                    Recomendado
+                                </div>
+                            {% endif %}
+                            
+                            <h3 class="text-xl font-bold text-primary dark:text-white">{{ plan.name }}</h3>
+                            <p class="mt-2 text-gray-500 dark:text-gray-400">
+                                {% if plan.name == 'Inicial' %}Para empezar.{% elif plan.name == 'Profesional' %}Para crecer.{% else %}Para escalar.{% endif %}
+                            </p>
+
+                            <p class="mt-6 text-4xl font-bold text-primary dark:text-white">
+                                ${{ plan.price_monthly|floatformat:0 }} <span class="text-lg font-medium text-gray-500">/ mes</span>
+                            </p>
+
+                            <ul class="mt-8 space-y-4 text-gray-600 dark:text-gray-300 flex-grow">
+                                <li class="flex items-center gap-3">
+                                    <span class="material-symbols-outlined text-secondary">check</span> 
+                                    {% if plan.max_staff == -1 %}
+                                        <strong>Personal Ilimitado</strong>
+                                    {% elif plan.max_staff == 1 %}
+                                        1 Miembro de Personal
+                                    {% else %}
+                                        {{ plan.max_staff }} Miembros de Personal
+                                    {% endif %}
+                                </li>
+                            
+                                <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Citas Ilimitadas</li>
+                                <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Página de reservas online</li>
+                                <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> Recordatorios Email/WhatsApp</li>
+
+                                {% if plan.allow_payments %}
+                                    <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">check</span> <strong>Pagos Online</strong></li>
+                                {% endif %}
+
+                                </ul>
+                            
+                            <a href="{% url 'register' %}?plan={{ plan.id }}" 
+                               class="w-full mt-8 flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 font-bold transition-colors duration-200
+                                      {% if plan.name == 'Profesional' %}
+                                        bg-secondary text-primary hover:opacity-90
+                                      {% else %}
+                                        bg-primary/10 text-primary dark:text-secondary dark:bg-secondary/20 dark:hover:bg-secondary/30 hover:bg-primary/20
+                                      {% endif %}">
+                               Elegir {{ plan.name }}
+                            </a>
+                        </div>
+                    {% empty %}
+                        <div class="col-span-3 text-center py-12">
+                            <p class="text-gray-500 text-lg">No hay planes configurados en el sistema aún.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+    <section class="py-20 md:py-24 bg-subtle-bg dark:bg-dark-subtle-bg">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-primary dark:text-white">¿Listo para optimizar tu agendamiento?</h2>
+            <p class="mt-4 text-lg text-text-light dark:text-text-dark max-w-2xl mx-auto">Comienza gratis hoy mismo.</p>
+            <div class="mt-8">
+                <a href="{% url 'register' %}" class="flex mx-auto min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-14 px-8 bg-primary text-white text-lg font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity">
+                    <span class="truncate">Comenzar Gratis</span>
+                </a>
+            </div>
+        </div>
+    </section>
+{% endblock %}
+
+{% block footer %}
+    {% include 'includes/landing_footer.html' %}
 {% endblock %}

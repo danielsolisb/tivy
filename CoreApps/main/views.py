@@ -1,6 +1,7 @@
 # CoreApps/main/views.py
-
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
+from django.core.signing import Signer, BadSignature
 from django.urls import reverse
 from django.http import JsonResponse, Http404
 from django.views.decorators.http import require_POST
@@ -22,6 +23,7 @@ from django.http import HttpResponseForbidden
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q, Sum, Count
 from django.contrib import messages
+from django.contrib.auth import login
 # from .forms import RegistrationForm # <-- Descomentaremos esto luego
 from django.urls import reverse_lazy # Para la redirección
 from .forms import UserProfileForm, BusinessConfigForm, StaffMemberForm, ServiceForm # <-- Importar el nuevo form
@@ -33,12 +35,19 @@ from CoreApps.scheduling.models import AvailabilityBlock, TimeOffBlock
 from CoreApps.catalog.models import Service
 from CoreApps.scheduling.models import Appointment
 from .utils import generate_available_slots
+from django.template.loader import render_to_string
+from CoreApps.main.wasenderapi_utils import send_whatsapp_message
 
 from .forms import EmailAuthenticationForm
 
 #pagina principal
 class HomePageView(TemplateView):
     template_name = "main/home.html" # Nombre de nuestra nueva plantilla
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # --- AGREGAR ESTA LÍNEA ---
+        context['plans'] = Plan.objects.filter(is_active=True).order_by('price_monthly')
+        return context
 
 #primera pantalla para suscripcion
 class SelectPlanView(TemplateView):
@@ -53,6 +62,7 @@ class SelectPlanView(TemplateView):
         # Obtenemos solo los planes marcados como activos
         context['plans'] = Plan.objects.filter(is_active=True).order_by('price_monthly')
         return context
+        
 #segunda pantalla para suscripcion
 class RegistrationView(TemplateView):
     template_name = "main/registration.html"
@@ -311,9 +321,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             context['chart_top_staff_labels'] = json.dumps([item['staff_member__name'] for item in top_staff_qs])
             context['chart_top_staff_data'] = json.dumps([item['count'] for item in top_staff_qs])
 
-        # --- FIN DE NUEVA LÓGICA ---
-
         return context
+
 class UserProfileView(LoginRequiredMixin, UpdateView):
     """
     Permite al usuario logueado editar su propio perfil (nombre, apellido).
@@ -729,7 +738,6 @@ class ServiceUpdateView(LoginRequiredMixin, UpdateView):
         return context
 
 # En CoreApps/main/views.py
-
 class ManageAvailabilityView(LoginRequiredMixin, TemplateView):
     template_name = 'dashboard/manage_availability.html'
 
@@ -839,7 +847,6 @@ def add_owner_as_staff_view(request):
     
     messages.success(request, f"¡Listo! Te has añadido al personal como '{owner_name}'.")
     return redirect('manage_staff')
-
 
 #API para calendarios y disponibilidad
 @login_required
@@ -1142,15 +1149,14 @@ def api_delete_event(request):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 # --- API PARA OBTENER LAS CITAS FILTRADAS POR ROL ---
+# Asegúrate de tener 'from django.db.models import Prefetch' al inicio de tu views.py si no está
+# (Aunque para este caso 'select_related' es suficiente)
+
 @login_required
 def api_get_appointments(request):
     """
     Endpoint de API para que FullCalendar obtenga las CITAS (Appointments)
     filtradas por el rol del usuario (Dueño vs Staff).
-    
-    CORREGIDO:
-    - Compara los estados con 'COMPLETED' y 'CANCELED' (del modelo)
-      en lugar de 'COMPLETADA' y 'CANCELADA'.
     """
     user = request.user
     
@@ -1185,28 +1191,33 @@ def api_get_appointments(request):
             start_time__range=[start_date, end_date]
         )
     
+    # --- 1. CORRECCIÓN DE RENDIMIENTO (N+1 Query) ---
+    # Le decimos a Django que también traiga el 'user' relacionado al 'customer'.
     appointments = base_queryset.select_related(
         'service', 
-        'customer',
+        'customer__user', # <-- CORREGIDO: Trae al usuario del cliente
         'staff_member'
     ).order_by('start_time')
 
     events = []
     
     for app in appointments:
+        
+        # --- 2. CORRECCIÓN DE ATRIBUTO (Título) ---
         title = f"{app.service.name}\n"
-        title += f"Cliente: {app.customer.first_name} {app.customer.last_name}\n"
+        # Leemos el nombre desde 'app.customer.user'
+        title += f"Cliente: {app.customer.user.first_name} {app.customer.user.last_name}\n" 
         
         if hasattr(user, 'business_profile'):
              title += f"Staff: {app.staff_member.name}"
 
-        # --- LÓGICA DE COLOR POR ESTADO (CORREGIDA) ---
-        color = '#007bff' # Azul (Agendada - SCHEDULED)
-        if app.status == 'COMPLETED':   # <-- CORREGIDO
-            color = '#198754' # Verde
-        elif app.status == 'CANCELED':  # <-- CORREGIDO
-            color = '#dc3545' # Rojo
+        color = '#007bff' 
+        if app.status == 'COMPLETED':
+            color = '#198754' 
+        elif app.status == 'CANCELED':
+            color = '#dc3545' 
 
+        # --- 3. CORRECCIÓN DE ATRIBUTOS (extendedProps) ---
         events.append({
             'id': app.pk,
             'title': title,
@@ -1216,8 +1227,9 @@ def api_get_appointments(request):
             'borderColor': color,
             'extendedProps': {
                 'service_name': app.service.name,
-                'client_name': f"{app.customer.first_name} {app.customer.last_name}",
-                'client_phone': app.customer.phone_number or "N/A",
+                # Leemos el nombre y teléfono desde 'app.customer.user'
+                'client_name': f"{app.customer.user.first_name} {app.customer.user.last_name}",
+                'client_phone': app.customer.user.phone_number or "N/A",
                 'staff_name': app.staff_member.name,
                 'price': f"${app.service.price}",
                 'status_display': app.get_status_display(),
@@ -1226,8 +1238,6 @@ def api_get_appointments(request):
         })
 
     return JsonResponse(events, safe=False)
-
-
 #actualizacion de estado de las citas
 @login_required
 @require_POST
@@ -1342,259 +1352,348 @@ class SelectStaffAndTimeView(TemplateView):
     template_name = 'main/select_staff_and_time.html'
 
     def get_context_data(self, **kwargs):
-        print("\n--- Iniciando get_context_data ---") # DEBUG
+        print("\n--- Iniciando get_context_data (SelectStaffAndTimeView) ---") 
         context = super().get_context_data(**kwargs)
+        
+        # 1. Obtener Negocio
         business = self.get_object()
-        service_id = self.request.session.get('selected_service_id')
-        print(f"DEBUG: service_id de sesión: {service_id}") # DEBUG
+        context['business'] = business
 
+        # 2. RECUPERACIÓN ROBUSTA DEL ID DE SERVICIO (El Arreglo Principal)
+        # Primero intentamos obtenerlo de la URL (método moderno GET)
+        service_id = self.request.GET.get('service_id')
+        
+        # Si no está en la URL, buscamos en la sesión (método antiguo/respaldo)
+        if not service_id:
+            service_id = self.request.session.get('service_id') # Nota: verifica si usas 'service_id' o 'selected_service_id'
+            print(f"DEBUG: service_id recuperado de sesión: {service_id}")
+        else:
+            # Si vino por URL, lo guardamos en sesión para el futuro
+            self.request.session['service_id'] = service_id
+            print(f"DEBUG: service_id recuperado de URL y guardado: {service_id}")
+
+        # 3. Validación de Servicio
         if not service_id:
             messages.warning(self.request, "Por favor, selecciona un servicio para continuar.")
-            context['business'] = business
-            context['staff_with_slots'] = []
-            print("DEBUG: No se encontró service_id en sesión.") # DEBUG
+            # Si no hay servicio, no podemos calcular nada. Retornamos contexto vacío o redirigimos.
+            # Lo ideal sería redirigir aquí, pero get_context_data debe retornar un dict.
+            # La redirección se maneja mejor en el método dispatch(), pero por ahora manejamos el error visualmente.
+            context['error_message'] = "No se ha seleccionado ningún servicio."
             return context
 
-        date_str = self.request.GET.get('date')
-        target_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else date.today()
-        print(f"DEBUG: Fecha objetivo (target_date): {target_date}") # DEBUG
-
+        # Obtener objeto Servicio
         service = get_object_or_404(Service, id=service_id)
-        print(f"DEBUG: Servicio encontrado: {service.name} (ID: {service.id})") # DEBUG
+        context['service'] = service
+        print(f"DEBUG: Servicio activo: {service.name}")
+
+        # 4. Gestión de Fechas (Target, Prev, Next)
+        date_str = self.request.GET.get('date')
+        if date_str:
+            try:
+                target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                target_date = timezone.now().date()
+        else:
+            target_date = timezone.now().date()
+
+        # Evitar viajar al pasado
+        if target_date < timezone.now().date():
+            target_date = timezone.now().date()
+
+        # Calcular día siguiente y anterior para los botones de navegación
+        next_date = target_date + timedelta(days=1)
+        prev_date = target_date - timedelta(days=1)
         
-        # --- Punto crítico 1: Encontrar staff elegible ---
+        # Solo permitimos volver si el día anterior no es el pasado
+        if prev_date < timezone.now().date():
+            context['prev_date_str'] = None
+        else:
+            context['prev_date_str'] = prev_date.strftime('%Y-%m-%d')
+            
+        context['next_date_str'] = next_date.strftime('%Y-%m-%d')
+        context['target_date_str'] = target_date.strftime('%Y-%m-%d')
+        
+        # Formato legible para el título (Ej: "Lunes, 14 Noviembre")
+        # Puedes usar el filtro |date:"..." en el template, o pasarlo aquí
+        context['target_date_display'] = target_date.strftime('%A, %d de %B') 
+        context['is_today'] = (target_date == timezone.now().date())
+
+        # 5. Lógica de Disponibilidad (Algoritmo)
         eligible_staff = StaffMember.objects.filter(
             business=business, 
-            services_offered=service, # Filtra por el servicio asignado
+            services_offered=service, 
             is_active=True
         )
-        print(f"DEBUG: Staff elegible encontrado (QuerySet): {eligible_staff}") # DEBUG
-        print(f"DEBUG: Número de staff elegible: {eligible_staff.count()}") # DEBUG
-
-        staff_with_slots = []
-        print("DEBUG: Calculando horarios para cada staff...") # DEBUG
-        # --- Punto crítico 2: Calcular horarios para cada uno ---
+        
+        availability_data = [] # Renombrado para coincidir con tu nuevo template
+        
+        print(f"DEBUG: Calculando slots para {target_date}...")
+        
         for staff in eligible_staff:
-            print(f"DEBUG: Procesando staff: {staff.name} (ID: {staff.id})") # DEBUG
-            # TODO: Determinar si es_domicilio y pasarlo
-            is_domicilio_request = False 
-            slots = generate_available_slots(staff, service, target_date, is_domicilio=is_domicilio_request)
-            print(f"DEBUG: Slots encontrados para {staff.name} en {target_date}: {slots}") # DEBUG
+            # Pasamos 'is_domicilio' si tu lógica de negocio lo requiere
+            is_domicilio = (service.location_type == 'DOMICILIO')
             
-            # Solo añadimos si tiene slots disponibles
-            if slots: 
-                staff_with_slots.append({
+            slots = generate_available_slots(
+                staff_member=staff, 
+                service=service, 
+                target_date=target_date, 
+                is_domicilio=is_domicilio
+            )
+            
+            if slots:
+                availability_data.append({
                     'staff': staff,
                     'slots': slots
                 })
+                print(f"DEBUG: {staff.name} tiene {len(slots)} slots.")
             else:
-                 print(f"DEBUG: {staff.name} NO tiene slots para {target_date}, no se añade a la lista final.") # DEBUG
+                print(f"DEBUG: {staff.name} NO tiene disponibilidad.")
 
-        # --- Punto crítico 3: Resultado final ---
-        print(f"DEBUG: Lista final staff_with_slots: {staff_with_slots}") # DEBUG
-
-        context['business'] = business
-        context['service'] = service
-        # context['staff_member'] = staff_member # Ya no pasamos un solo staff, sino la lista
-        context['staff_with_slots'] = staff_with_slots 
+        context['availability_data'] = availability_data
         
-        # Datos para el selector de fecha (sin cambios)
-        days = []
-        for i in range(7):
-            current_day = date.today() + timedelta(days=i)
-            day_names = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
-            days.append({
-                'date': current_day,
-                'name': "Hoy" if i == 0 else "Mañana" if i == 1 else day_names[current_day.weekday()],
-                'date_str': current_day.strftime('%Y-%m-%d')
-            })
-
-        context['available_days'] = days
-        context['target_date_str'] = target_date.strftime('%Y-%m-%d')
-        context['target_date_display'] = target_date.strftime('%d de %B de %Y')
-        
-        print("--- Finalizando get_context_data ---") # DEBUG
+        print("--- Finalizando get_context_data ---")
         return context
 
     def post(self, request, *args, **kwargs):
-        # El post no debería ser el problema ahora, lo dejamos como está
+        print("\n--- Iniciando POST (SelectStaffAndTimeView) ---")
+        
+        # 1. Capturamos datos del formulario (botones)
+        service_id = request.POST.get('service_id')
+        staff_id = request.POST.get('staff_member_id')
         selected_time = request.POST.get('selected_time')
-        selected_date = request.POST.get('selected_date')
-        staff_id = request.session.get('selected_staff_id') # Recuperamos staff_id de la sesión si es necesario
         
-        # Corrección: El staff_id viene del botón presionado, no de la sesión aquí
-        staff_id_from_post = request.POST.get('staff_member_id')
+        # 2. CORRECCIÓN CRÍTICA: La fecha suele venir en la URL (GET), no en el POST
+        selected_date = request.POST.get('selected_date') or request.GET.get('date')
+        
+        # Si por alguna razón falla, usamos hoy como fallback para no romper
+        if not selected_date:
+            selected_date = timezone.now().strftime('%Y-%m-%d')
 
-        if selected_time and selected_date and staff_id_from_post:
-            request.session['selected_time'] = selected_time
+        print(f"DEBUG POST: Service: {service_id}, Staff: {staff_id}, Time: {selected_time}, Date: {selected_date}")
+
+        # 3. Validación: Necesitamos los 4 datos para avanzar
+        if service_id and staff_id and selected_time and selected_date:
+            # Guardamos TODO en la sesión
+            request.session['service_id'] = service_id
+            request.session['staff_member_id'] = staff_id
+            request.session['selected_staff_id'] = staff_id # (Guardamos con ambos nombres por compatibilidad con tu código viejo)
             request.session['selected_date'] = selected_date
-            request.session['selected_staff_id'] = staff_id_from_post # Guardamos el staff elegido
-            return redirect(reverse('confirm_booking', kwargs={'slug': self.kwargs.get('slug')}))
+            request.session['selected_time'] = selected_time
+            
+            # Datos agrupados para fácil lectura en la siguiente vista
+            request.session['booking_data'] = {
+                'service_id': service_id,
+                'staff_id': staff_id,
+                'date': selected_date,
+                'time': selected_time
+            }
+            
+            print("DEBUG: Datos completos. Redirigiendo a confirmación.")
+            return redirect('confirm_booking', slug=self.kwargs.get('slug'))
         
-        messages.error(request, "Ocurrió un error. Por favor, selecciona un profesional y un horario.")
-        current_date = request.POST.get('selected_date', date.today().strftime('%Y-%m-%d'))
-        redirect_url = reverse('select_staff_and_time', kwargs={'slug': self.kwargs.get('slug')}) + f'?date={current_date}'
+        # Si falta algo, error y recargar
+        print("DEBUG ERROR: Faltan datos obligatorios.")
+        messages.error(request, "Ocurrió un error al seleccionar el horario. Intenta de nuevo.")
+        
+        # Reconstruimos la URL para no perder el día que el usuario estaba viendo
+        redirect_url = request.path + f'?date={selected_date}&service_id={service_id or ""}'
         return redirect(redirect_url)
 
     def get_object(self):
         return get_object_or_404(Business, slug=self.kwargs.get('slug'))
 
 #Tercera pantalla donde se confirma los datos del customer y todo organizado
+
 class ConfirmBookingView(TemplateView):
     template_name = 'main/confirm_booking.html'
 
+    def get_object(self):
+        return get_object_or_404(Business, slug=self.kwargs.get('slug'))
+
+    def get_booking_data(self):
+        """ Helper para recuperar datos de sesión de forma segura """
+        booking_data = self.request.session.get('booking_data', {})
+        
+        if not booking_data:
+            return {
+                'service_id': self.request.session.get('service_id'),
+                'staff_id': self.request.session.get('staff_member_id') or self.request.session.get('selected_staff_id'),
+                'date': self.request.session.get('selected_date'),
+                'time': self.request.session.get('selected_time')
+            }
+        
+        return {
+            'service_id': booking_data.get('service_id'),
+            'staff_id': booking_data.get('staff_id'),
+            'date': booking_data.get('date_str') or booking_data.get('date'),
+            'time': booking_data.get('time_str') or booking_data.get('time')
+        }
+
     def get_context_data(self, **kwargs):
-        # ... (Tu método get_context_data está perfecto, no necesita cambios) ...
-        # ... (Se mantiene exactamente igual) ...
         context = super().get_context_data(**kwargs)
         business = self.get_object()
-        service_id = self.request.session.get('selected_service_id')
-        staff_id = self.request.session.get('selected_staff_id')
-        selected_time_str = self.request.session.get('selected_time')
-        selected_date_str = self.request.session.get('selected_date')
         
-        if not all([service_id, staff_id, selected_time_str, selected_date_str]):
-            messages.error(self.request, "Faltan datos de la cita. Por favor, empieza de nuevo.")
-            context['error'] = True
-            context['business'] = business
+        data = self.get_booking_data()
+        
+        if not all(data.values()):
+            messages.error(self.request, "Datos de sesión perdidos. Por favor, selecciona servicio y hora nuevamente.")
+            context['error'] = True 
             return context
 
-        service = get_object_or_404(Service, id=service_id)
-        staff_member = get_object_or_404(StaffMember, id=staff_id)
+        service = get_object_or_404(Service, id=data['service_id'])
+        staff_member = get_object_or_404(StaffMember, id=data['staff_id'])
         
         try:
-            selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
-            selected_time = datetime.strptime(selected_time_str, '%H:%M').time()
-            naive_datetime = datetime.combine(selected_date, selected_time)
-            selected_datetime = timezone.make_aware(naive_datetime)
-        except ValueError:
-            messages.error(self.request, "Formato de fecha u hora inválido guardado en la sesión.")
+            target_date = datetime.strptime(str(data['date']), '%Y-%m-%d').date()
+            target_time = datetime.strptime(str(data['time']), '%H:%M').time()
+            naive_dt = datetime.combine(target_date, target_time)
+            start_time = timezone.make_aware(naive_dt)
+            
+        except (ValueError, TypeError) as e:
+            print(f"DEBUG ERROR FECHA: {e}")
+            messages.error(self.request, "Error interno de formato de fecha.")
             context['error'] = True
-            context['business'] = business
             return context
 
-        context['business'] = business
-        context['service'] = service
-        context['staff_member'] = staff_member
-        context['selected_datetime'] = selected_datetime
+        context.update({
+            'business': business,
+            'appointment_data': {
+                'service': service,
+                'staff': staff_member,
+                'date': target_date,
+                'time': target_time,
+                'datetime': start_time
+            },
+            'target_date': target_date,
+            'target_time': target_time
+        })
         return context
-    
+
     def post(self, request, *args, **kwargs):
         business = self.get_object()
-        service_id = request.session.get('selected_service_id')
-        staff_id = request.session.get('selected_staff_id')
-        selected_time_str = request.session.get('selected_time')
-        selected_date_str = request.session.get('selected_date')
-        
-        if not all([service_id, staff_id, selected_time_str, selected_date_str]):
-            messages.error(request, "Tu sesión ha expirado o faltan datos. Por favor, intenta de nuevo.")
-            return redirect(reverse('business_profile', kwargs={'slug': business.slug}))
+        data = self.get_booking_data()
 
-        service = get_object_or_404(Service, id=service_id)
-        staff_member = get_object_or_404(StaffMember, id=staff_id)
-        
+        if not all(data.values()):
+            messages.error(request, "La sesión ha expirado. Vuelve a empezar.")
+            return redirect('business_profile', slug=business.slug)
+
+        service = get_object_or_404(Service, id=data['service_id'])
+        staff_member = get_object_or_404(StaffMember, id=data['staff_id'])
+
         email = request.POST.get('email', '').strip()
         first_name = request.POST.get('first_name', '').strip()
         last_name = request.POST.get('last_name', '').strip()
         phone_number = request.POST.get('phone_number', '').strip()
-        address = request.POST.get('address', '').strip()
-        location_choice = request.POST.get('location_choice', 'local')
+        address = request.POST.get('address_line', '').strip()
+        location_type = request.POST.get('location_type', 'LOCAL')
 
-        if not email:
-            messages.error(request, "El correo electrónico es obligatorio.")
-            return self.get(request, *args, **kwargs)
+        if not email or not first_name:
+            messages.error(request, "Por favor completa los campos obligatorios.")
+            return self.render_to_response(self.get_context_data())
 
-        # --- INICIO DE LA LÓGICA REFACTORIZADA ---
+        # --- LÓGICA DE USUARIO / CUSTOMER ---
+        
         user = User.objects.filter(email=email).first()
-        is_new_user = user is None
-
-        if is_new_user:
-            if not first_name or not last_name:
-                messages.error(request, "Nombre y Apellido son obligatorios para nuevos usuarios.")
-                return self.get(request, *args, **kwargs)
-            
-            # --- CAMBIO: Implementamos tu lógica de contraseña aleatoria ---
-            # (Por ahora se imprime, en el futuro se enviará por email)
-            password = User.objects.make_random_password()
-            print(f"DEBUG: Contraseña temporal para {email}: {password}")
-
+        if not user:
+            temp_password = User.objects.make_random_password()
             user = User.objects.create_user(
-                username=email, 
-                email=email, 
+                username=email,
+                email=email,
                 first_name=first_name,
                 last_name=last_name,
-                phone_number=phone_number, # Guardamos el teléfono en el User
-                password=password # Usamos la contraseña aleatoria
+                phone_number=phone_number,
+                password=temp_password
             )
+            print(f"DEBUG: Usuario creado {email} - Pass: {temp_password}")
         else:
-            # Si el usuario ya existe, actualizamos su teléfono si es necesario
-            if phone_number and user.phone_number != phone_number:
+            if phone_number and not user.phone_number:
                 user.phone_number = phone_number
                 user.save(update_fields=['phone_number'])
-            # (Ya no actualizamos nombre/apellido, esos son fijos del User)
 
-        # --- Lógica de Customer (Relación Usuario-Negocio) REFACTORIZADA ---
-        
-        # Determinamos si la dirección es necesaria
-        is_domicilio_request = (service.location_type == 'DOMICILIO' or (service.location_type == 'AMBOS' and location_choice == 'domicilio'))
-        address_to_save = address if is_domicilio_request else None
+        # --- AUTO-LOGIN ---
+        if not request.user.is_authenticated:
+            user.backend = 'CoreApps.main.backends.EmailAuthBackend'
+            login(request, user)
+            print(f"DEBUG: Auto-login forzado para {user.email}")
 
-        customer, customer_created = Customer.objects.get_or_create(
-            user=user, 
-            business=business,
-            defaults={ # Valores por defecto SOLO si se crea el Customer
-                'address_line': address_to_save
-                # Ya no pasamos first_name, email, etc.
-            }
+        customer, created = Customer.objects.get_or_create(
+            user=user,
+            business=business
         )
+        
+        if location_type == 'DOMICILIO' and address:
+            customer.address_line = address
+            customer.save(update_fields=['address_line'])
 
-        # --- Actualizamos datos del Customer si ya existía (SOLO DIRECCIÓN) ---
-        if not customer_created:
-            update_fields = []
-            
-            if is_domicilio_request and address and customer.address_line != address:
-                customer.address_line = address
-                update_fields.append('address_line')
-                # TODO: Guardar lat/lon
-            
-            # (Ya no actualizamos first_name, last_name, phone)
-
-            if update_fields:
-                customer.save(update_fields=update_fields)
-        # --- FIN DE LA LÓGICA REFACTORIZADA ---
-
-        # --- Crear la Cita (Sin Cambios) ---
+        # --- CREACIÓN DE LA CITA ---
         try:
-            selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
-            selected_time = datetime.strptime(selected_time_str, '%H:%M').time()
-            naive_start_time = datetime.combine(selected_date, selected_time)
-            start_time = timezone.make_aware(naive_start_time)
-            end_time = start_time + service.duration
+            t_date = datetime.strptime(str(data['date']), '%Y-%m-%d').date()
+            t_time = datetime.strptime(str(data['time']), '%H:%M').time()
+            start_dt = timezone.make_aware(datetime.combine(t_date, t_time))
+            end_dt = start_dt + service.duration
         except ValueError:
-            messages.error(request, "Error en el formato de fecha u hora guardado en la sesión.")
-            return self.get(request, *args, **kwargs)
+            messages.error(request, "Error de fecha al guardar.")
+            return redirect('business_profile', slug=business.slug)
 
         appointment = Appointment.objects.create(
             business=business,
             staff_member=staff_member,
-            customer=customer, # Este es el 'conector'
+            customer=customer,
             service=service,
-            start_time=start_time,
-            end_time=end_time
+            start_time=start_dt,
+            end_time=end_dt,
+            status='SCHEDULED'
         )
-        
-        # Limpiamos la sesión (Sin Cambios)
-        request.session.pop('selected_service_id', None)
-        request.session.pop('selected_staff_id', None)
-        request.session.pop('selected_time', None)
-        request.session.pop('selected_date', None)
-        
-        messages.success(request, f"¡Tu cita para {service.name} con {staff_member.name} ha sido agendada con éxito!")
-        return redirect(reverse('booking_confirmed', kwargs={'pk': appointment.pk}))
-        
-    def get_object(self):
-        return get_object_or_404(Business, slug=self.kwargs.get('slug'))
 
+        # --- 🚀 INTEGRACIÓN WASENDER API (CORREGIDA Y BLINDADA) 🚀 ---
+        try:
+            phone_to_send = phone_number or user.phone_number
+            
+            if phone_to_send:
+                # INTENTO SEGURO DE OBTENER DATOS DEL NEGOCIO
+                # Intenta buscar 'business_name', si no existe usa 'name', si no, usa str(business)
+                b_name = getattr(business, 'business_name', getattr(business, 'name', str(business)))
+                
+                # Intenta buscar 'address', si no existe busca 'address_line', si no, texto genérico
+                b_address = getattr(business, 'address', getattr(business, 'address_line', 'Ubicación del negocio'))
+
+                message_context = {
+                    'customer_name': user.first_name,
+                    'service': service,
+                    'staff': staff_member,
+                    'business': business,
+                    
+                    # Usamos las variables seguras que calculamos arriba
+                    'business_name': b_name,       
+                    'business_address': b_address, 
+                    
+                    'customer': customer,
+                    'appointment': appointment,
+                    'date': start_dt.strftime('%A, %d de %B'),
+                    'time': start_dt.strftime('%I:%M %p'),
+                }
+                
+                message_body = render_to_string('appointments/messages/wa_confirmation.txt', message_context)
+                
+                print(f"DEBUG: Enviando WA a {phone_to_send}...")
+                success, response = send_whatsapp_message(phone_to_send, message_body)
+                
+                if not success:
+                    logger.warning(f"Fallo WASender: {response}")
+                else:
+                    print(f"DEBUG: WA Enviado correctamente.")
+            else:
+                logger.warning(f"Cliente {user.email} sin teléfono. No se envió WA.")
+
+        except Exception as e:
+            # AHORA SÍ funcionará este log porque definimos logger arriba
+            logger.error(f"Error CRÍTICO enviando notificación WhatsApp: {e}")
+        # --- 🏁 FIN INTEGRACIÓN ---
+
+        request.session.pop('booking_data', None)
+        
+        messages.success(request, "¡Cita confirmada exitosamente!")
+        return redirect('booking_confirmed', pk=appointment.pk)
 #confirmación de la cita con sus datos, pantalla final.
 class BookingConfirmedView(DetailView):
     """
@@ -1608,6 +1707,9 @@ class BookingConfirmedView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         appointment = self.get_object()
+
+        signer = Signer()
+        token = signer.sign(self.object.pk)
 
         # --- Generar Enlace de Google Calendar ---
         start_time_utc = appointment.start_time.astimezone(timezone.utc)
@@ -1623,22 +1725,62 @@ class BookingConfirmedView(DetailView):
         google_calendar_url = f'https://www.google.com/calendar/render?{urlencode(params)}'
         context['google_calendar_url'] = google_calendar_url
 
+        context['reschedule_token'] = token  # Pasamos el token al HTML
         # Pasamos también la hora local para mostrarla
         context['local_start_time'] = localtime(appointment.start_time)
 
         return context
 
 #Reprogramar la cita
-class RescheduleAppointmentView(LoginRequiredMixin, TemplateView): # Usamos LoginRequiredMixin para seguridad
+class RescheduleAppointmentView(TemplateView): 
+    # NOTA: Ya NO hereda de LoginRequiredMixin para permitir acceso "Guest"
     template_name = 'main/reschedule_appointment.html'
 
+    def get_object(self):
+        return get_object_or_404(Appointment, pk=self.kwargs.get('pk'))
+
     def dispatch(self, request, *args, **kwargs):
-        # --- Verificación de Permisos ---
         appointment = self.get_object()
-        # Solo el customer asociado a la cita puede reprogramarla (o superuser)
-        # Una lógica más avanzada podría permitir al negocio reprogramar
-        if appointment.customer.user != request.user and not request.user.is_superuser:
-            return HttpResponseForbidden("No tienes permiso para modificar esta cita.")
+        
+        # --- LÓGICA DE "LLAVE MAESTRA" (TOKEN) ---
+        token = request.GET.get('token')
+        has_valid_token = False
+        
+        if token:
+            signer = Signer()
+            try:
+                # Intentamos "des-firmar" el token. 
+                # Si fue alterado o no corresponde, lanza BadSignature.
+                original_pk = signer.unsign(token)
+                
+                # Verificamos que el token pertenezca EXACTAMENTE a esta cita
+                if str(original_pk) == str(appointment.pk):
+                    has_valid_token = True
+                    print(f"DEBUG: Acceso concedido por Token válido para cita {appointment.pk}")
+            except BadSignature:
+                print("DEBUG: Token de reprogramación inválido o corrupto.")
+
+        # --- LÓGICA DE PERMISOS COMBINADA ---
+        # Permitimos pasar si: 
+        # 1. Tiene el token válido (Cliente invitado)
+        # 2. O ES el dueño logueado (Cliente registrado)
+        # 3. O ES el dueño del negocio (Admin)
+        
+        is_auth = request.user.is_authenticated
+        is_owner = is_auth and (appointment.customer.user == request.user)
+        
+        is_business_owner = False
+        if is_auth and hasattr(request.user, 'business_profile'):
+            if request.user.business_profile == appointment.business:
+                is_business_owner = True
+
+        # SI NO CUMPLE NINGUNA -> BLOQUEAR
+        if not (has_valid_token or is_owner or is_business_owner or (is_auth and request.user.is_superuser)):
+            # Si es un usuario anónimo sin token, lo mandamos al login (por si acaso)
+            if not is_auth:
+                return redirect(f"{settings.LOGIN_URL}?next={request.path}")
+            return HttpResponseForbidden("No tienes permiso o el enlace ha expirado.")
+
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -1648,28 +1790,40 @@ class RescheduleAppointmentView(LoginRequiredMixin, TemplateView): # Usamos Logi
         staff_member = appointment.staff_member
         business = appointment.business
 
-        # Determinar la fecha objetivo (desde URL o hoy)
+        # Fecha objetivo: Si no hay fecha en URL, usamos la fecha ORIGINAL de la cita
         date_str = self.request.GET.get('date')
-        target_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else date.today()
+        if date_str:
+            try:
+                target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                target_date = date.today()
+        else:
+            # MEJORA UX: Empezar el calendario en el día de la cita original
+            target_date = appointment.start_time.date()
+
+        # Evitar navegar al pasado (antes de hoy)
+        if target_date < date.today():
+            target_date = date.today()
 
         context['appointment'] = appointment
         context['business'] = business
         context['service'] = service
         context['staff_member'] = staff_member
+        
         context['target_date_str'] = target_date.strftime('%Y-%m-%d')
-        context['target_date_display'] = target_date.strftime('%d de %B de %Y')
+        # Usamos un formato amigable compatible con tu template
+        context['target_date_display'] = target_date.strftime('%A, %d de %B')
 
         # --- Calcular Día Anterior/Siguiente ---
-        today = date.today()
         prev_date = target_date - timedelta(days=1)
         next_date = target_date + timedelta(days=1)
         
         context['prev_date_str'] = prev_date.strftime('%Y-%m-%d')
         context['next_date_str'] = next_date.strftime('%Y-%m-%d')
-        # Deshabilitar "Día Anterior" si ya estamos en hoy
-        context['can_go_back'] = target_date > today
+        # Solo permitimos volver si el día anterior no es pasado
+        context['can_go_back'] = (prev_date >= date.today())
 
-        # Generar slots disponibles para la fecha objetivo
+        # Generar slots (Mantenemos tu variable original 'available_slots')
         context['available_slots'] = generate_available_slots(staff_member, service, target_date)
 
         return context
@@ -1678,16 +1832,18 @@ class RescheduleAppointmentView(LoginRequiredMixin, TemplateView): # Usamos Logi
         appointment = self.get_object()
         service = appointment.service
         
+        # Capturamos datos del form
         selected_time_str = request.POST.get('selected_time')
         selected_date_str = request.POST.get('selected_date')
 
         if not selected_time_str or not selected_date_str:
             messages.error(request, "Por favor, selecciona una nueva fecha y hora.")
-            return redirect(request.path_info) # Recargar la página de edición
+            return redirect(request.path_info)
 
         try:
             selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
             selected_time = datetime.strptime(selected_time_str, '%H:%M').time()
+            
             naive_start_time = datetime.combine(selected_date, selected_time)
             new_start_time = timezone.make_aware(naive_start_time)
             new_end_time = new_start_time + service.duration
@@ -1695,36 +1851,26 @@ class RescheduleAppointmentView(LoginRequiredMixin, TemplateView): # Usamos Logi
             messages.error(request, "Formato de fecha u hora inválido.")
             return redirect(request.path_info)
 
-        # --- Validación de Disponibilidad (Doble Check) ---
-        # Verificamos si el slot elegido SIGUE disponible
-        # (Esta es una validación simple, una más robusta comprobaría colisiones)
-        is_still_available = new_start_time.strftime('%H:%M') in generate_available_slots(
-            appointment.staff_member, service, selected_date
-        )
-        # TODO: Añadir regla de negocio (ej. no reprogramar con < 24h)
-        # time_until_appointment = appointment.start_time - timezone.now()
-        # if time_until_appointment < timedelta(hours=24):
-        #     messages.error(request, "No puedes reprogramar con menos de 24 horas de antelación.")
-        #     return redirect(request.path_info)
-
-
-        if is_still_available:
-            # Actualizar la cita existente
+        # --- Validación: ¿El nuevo horario sigue libre? ---
+        # Generamos slots para esa fecha y vemos si la hora elegida está en la lista
+        available_slots = generate_available_slots(appointment.staff_member, service, selected_date)
+        
+        # Caso especial: Si elige la MISMA hora que ya tiene, lo dejamos pasar (es su propio slot)
+        is_same_time = (new_start_time == appointment.start_time)
+        
+        if selected_time_str in available_slots or is_same_time:
+            # Actualizar la cita
             appointment.start_time = new_start_time
             appointment.end_time = new_end_time
             appointment.save()
 
             messages.success(request, "¡Tu cita ha sido reprogramada con éxito!")
-            # Redirigir a la confirmación de la cita actualizada
             return redirect(reverse('booking_confirmed', kwargs={'pk': appointment.pk}))
         else:
             messages.error(request, "El horario seleccionado ya no está disponible. Por favor, elige otro.")
-            return redirect(request.path_info)
-
-    def get_object(self):
-        # Obtenemos la cita específica usando el 'pk' de la URL
-        return get_object_or_404(Appointment, pk=self.kwargs.get('pk'))
-
+            # Redirigimos a la misma fecha para que no pierda contexto
+            return redirect(f"{request.path_info}?date={selected_date_str}")
+            
 def check_customer_view(request):
     email = request.GET.get('email', None)
     if not email:

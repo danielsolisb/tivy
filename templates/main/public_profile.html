@@ -1,99 +1,123 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block title %}{{ business.display_name }}{% endblock %}
 
 {% block content %}
-{# --- Bloque para definir los colores del tema --- #}
+{# --- Estilos Dinámicos del Negocio (Se mantienen para la marca) --- #}
 <style>
     :root {
-        --theme-primary: {{ business.primary_color|default:'#0d6efd' }}; /* Color primario o azul por defecto */
-        --theme-secondary: {{ business.secondary_color|default:'#6c757d' }}; /* Color secundario o gris por defecto */
+        --theme-primary: {{ business.primary_color|default:'#0A2540' }};
     }
-    .btn-primary-theme {
+    /* Botón personalizado usando el color del negocio */
+    .btn-brand {
         background-color: var(--theme-primary);
-        border-color: var(--theme-primary);
-        color: white; /* Asumimos texto blanco sobre color primario, se puede ajustar */
-    }
-    .btn-primary-theme:hover {
-        opacity: 0.9;
-        background-color: var(--theme-primary);
-        border-color: var(--theme-primary);
         color: white;
+        transition: all 0.2s;
     }
-    .service-card {
-        border-radius: 15px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        transition: transform 0.2s ease-in-out;
+    .btn-brand:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
-    .service-card:hover {
-        transform: translateY(-5px);
+    /* Radio button personalizado para seleccionar servicio */
+    .service-radio:checked + div {
+        border-color: var(--theme-primary);
+        background-color: #F6F9FC; /* subtle-bg */
+        box-shadow: 0 0 0 2px var(--theme-primary);
+    }
+    .service-radio:checked + div .check-icon {
+        color: var(--theme-primary);
+        opacity: 1;
+        transform: scale(1);
     }
 </style>
 
-<div class="container mt-5">
-    {# --- Logo del Negocio (Opcional, centrado) --- #}
-    <div class="text-center mb-4">
-        {% if business.photo %}
-            <img src="{{ business.photo.url }}" class="rounded-circle" alt="Logo de {{ business.display_name }}" style="max-width: 100px; max-height: 100px; object-fit: cover;">
-        {% endif %}
-    </div>
-
-    <h2 class="text-center mb-5">Nuestros Servicios</h2>
-
-    {# --- Mensajes de error --- #}
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-warning">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
-
-    {# --- Formulario que engloba toda la selección --- #}
-    <form method="post">
-        {% csrf_token %}
-        <div class="row g-4">
-            {% for service in services %}
-            <div class="col-md-6 col-lg-4 d-flex align-items-stretch">
-                <div class="card service-card w-100">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title">{{ service.name }}</h5>
-                        <p class="card-text flex-grow-1">{{ service.description|default:"Descripción no disponible." }}</p>
-                        <div class="d-flex justify-content-between align-items-center mt-3">
-                            <span class="h5 text-muted">${{ service.price|floatformat:2 }}</span>
-                            {# --- Botón específico para este servicio --- #}
-                            <button type="submit" name="service_id" value="{{ service.id }}" class="btn btn-primary-theme">
-                                Seleccionar
-                            </button>
-                        </div>
-                         <small class="text-muted mt-2">Duración: {{ service.duration }}</small>
+<div class="min-h-[calc(100vh-4rem)] bg-subtle-bg dark:bg-dark-subtle-bg py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl mx-auto">
+        
+        <div class="text-center mb-12">
+            <div class="inline-block p-1 rounded-full bg-white dark:bg-gray-800 shadow-md mb-4">
+                {% if business.photo %}
+                    <img src="{{ business.photo.url }}" alt="{{ business.display_name }}" class="w-24 h-24 rounded-full object-cover border-2 border-white dark:border-gray-700">
+                {% else %}
+                    <div class="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-2xl font-bold text-gray-400">
+                        {{ business.display_name|slice:":1" }}
                     </div>
+                {% endif %}
+            </div>
+            <h1 class="text-3xl font-bold text-primary dark:text-white">{{ business.display_name }}</h1>
+            {% if business.bio %}
+                <p class="mt-2 text-gray-600 dark:text-gray-400 max-w-lg mx-auto">{{ business.bio }}</p>
+            {% endif %}
+            {% if business.address %}
+                <p class="mt-1 text-sm text-gray-500 flex items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-sm">location_on</span> {{ business.address }}
+                </p>
+            {% endif %}
+        </div>
+
+        <form method="get" action="{% url 'select_staff_and_time' slug=business.slug %}" class="space-y-8">
+            
+            <div class="bg-white dark:bg-background-dark rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="p-6 border-b border-gray-100 dark:border-gray-800">
+                    <h2 class="text-xl font-semibold text-primary dark:text-white flex items-center gap-2">
+                        <span class="material-symbols-outlined text-secondary">spa</span> Selecciona un Servicio
+                    </h2>
+                </div>
+                
+                <div class="p-6 grid gap-4 sm:grid-cols-1">
+                    {% for service in services %}
+                    <label class="relative cursor-pointer group">
+                        <input type="radio" name="service_id" value="{{ service.id }}" class="peer sr-only service-radio" required>
+                        
+                        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all flex items-center justify-between bg-white dark:bg-gray-800">
+                            <div class="flex items-center gap-4">
+                                {% if service.photo %}
+                                    <img src="{{ service.photo.url }}" class="w-12 h-12 rounded-lg object-cover shadow-sm">
+                                {% endif %}
+                                
+                                <div>
+                                    <h3 class="font-semibold text-text-light dark:text-white group-hover:text-primary transition-colors">{{ service.name }}</h3>
+                                    <div class="flex items-center gap-3 mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                        <span class="flex items-center gap-1">
+                                            <span class="material-symbols-outlined text-[16px]">schedule</span> 
+                                            {{ service.duration }}
+                                        </span>
+                                        {% if service.description %}
+                                            <span class="hidden sm:inline text-gray-300">|</span>
+                                            <span class="hidden sm:inline truncate max-w-[200px]">{{ service.description }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center gap-4">
+                                <span class="font-bold text-lg text-primary dark:text-white">${{ service.price|floatformat:0 }}</span>
+                                <div class="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 flex items-center justify-center check-icon opacity-0 transform scale-50 transition-all">
+                                    <span class="material-symbols-outlined text-sm font-bold">check</span>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    {% empty %}
+                        <div class="text-center py-8 text-gray-500">
+                            Este negocio no tiene servicios activos en este momento.
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
-            {% empty %}
-            <div class="col">
-                <p class="text-center text-muted">Este negocio no tiene servicios activos en este momento.</p>
-            </div>
-            {% endfor %}
-        </div>
 
-        {# --- Sección oculta para seleccionar el profesional (se llenará con JS más adelante si es necesario) --- #}
-        {# Por ahora, asumimos que se elige aquí o en el siguiente paso #}
-        <div class="mt-4 d-none"> {# TODO: Desocultar y poblar dinámicamente o eliminar si se elige en paso separado #}
-             <label class="form-label"><strong>Profesional:</strong></label>
-             <div id="staff-selection">
-                {% for staff in staff_members %}
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="staff_member_id" id="staff-{{ staff.id }}" value="{{ staff.id }}" required>
-                        <label class="form-check-label" for="staff-{{ staff.id }}">
-                            {{ staff.name }}
-                        </label>
-                    </div>
-                {% empty %}
-                    {# Este mensaje no debería aparecer si filtramos por servicio #}
-                {% endfor %}
+            <div class="fixed bottom-0 left-0 right-0 p-4 bg-white dark:bg-background-dark border-t border-gray-200 dark:border-gray-800 md:static md:bg-transparent md:border-0 md:p-0 z-40">
+                <button type="submit" class="w-full btn-brand rounded-lg py-4 px-6 text-lg font-bold shadow-lg md:w-auto md:float-right flex items-center justify-center gap-2">
+                    Siguiente Paso
+                    <span class="material-symbols-outlined">arrow_forward</span>
+                </button>
             </div>
-        </div>
-        {# <button type="submit" class="btn btn-primary mt-4 d-none">Siguiente</button> #}
-    </form>
+            <div class="h-20 md:hidden"></div>
+
+        </form>
+    </div>
 </div>
 {% endblock %}
