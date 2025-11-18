@@ -1,0 +1,109 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 | Error del Servidor | Tivy</title>
+    <link href="{% static 'css-auralis/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css-auralis/nifty.min.css' %}" rel="stylesheet">
+    <link href="{% static 'fontawesome/css/all.min.css' %}" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #E8EAF6; /* Fondo suave de Tivy */
+            color: #424242; /* Texto gris oscuro */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .error-container {
+            text-align: center;
+            padding: 40px;
+            background: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 90%;
+        }
+        .error-code {
+            font-size: 150px;
+            font-weight: 900;
+            color: #EF5350; /* Rojo de error de Tivy */
+            line-height: 1;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .error-code::before {
+            content: "\f071"; /* Ícono de exclamación (solid) de Font Awesome */
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%) translateY(-70%);
+            font-size: 80px;
+            color: rgba(239, 83, 80, 0.15); /* Versión más suave del color de error */
+            z-index: -1;
+        }
+        .error-title {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #424242;
+        }
+        .error-message {
+            font-size: 18px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .btn-tivy-primary {
+            background-color: #5C6BC0;
+            border-color: #5C6BC0;
+            color: white;
+            padding: 12px 25px;
+            font-size: 18px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+        .btn-tivy-primary:hover {
+            background-color: #485799;
+            border-color: #485799;
+            color: white;
+        }
+        .contact-info {
+            margin-top: 25px;
+            font-size: 16px;
+            color: #757575;
+        }
+        .contact-info a {
+            color: #5C6BC0;
+            text-decoration: none;
+        }
+        .contact-info a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-code">500</div>
+        <h1 class="error-title">¡Vaya! Tenemos un pequeño retraso.</h1>
+        <p class="error-message">
+            Nuestro equipo de Tivy ya ha sido notificado automáticamente y está trabajando para solucionar esta interrupción.<br>
+            Pronto estaremos de vuelta en línea para que puedas gestionar tu tiempo.
+        </p>
+        <div>
+            <a class="btn btn-tivy-primary" href="{% url 'home' %}">
+                <i class="fas fa-redo-alt me-2"></i> Intentar de nuevo / Ir al Inicio
+            </a>
+        </div>
+        <p class="contact-info">
+            Si el problema persiste, no dudes en <a href="https://wa.me/TU_NUMERO_WHATSAPP_AQUI" target="_blank">contactarnos por WhatsApp</a>.
+        </p>
+    </div>
+</body>
+</html>

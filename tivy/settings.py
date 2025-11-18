@@ -9,7 +9,8 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
-
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
 from pathlib import Path
 from decouple import config
 from dotenv import load_dotenv
@@ -63,6 +64,21 @@ CSRF_TRUSTED_ORIGINS = [
 #]
 
 # Application definition
+
+# Inicialización de Sentry
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    integrations=[
+        DjangoIntegration(),
+    ],
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # Recomendado bajarlo a 0.2 o 0.1 en producción si tienes mucho tráfico.
+    traces_sample_rate=1.0,
+
+    # Si deseas enviar datos de usuario (como email/id) para saber QUIÉN tuvo el error
+    send_default_pii=True
+)
 
 INSTALLED_APPS = [
     'django.contrib.admin',

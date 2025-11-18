@@ -1,5 +1,4 @@
 # CoreApps/main/views.py
-import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.signing import Signer, BadSignature
 from django.urls import reverse
@@ -24,6 +23,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q, Sum, Count
 from django.contrib import messages
 from django.contrib.auth import login
+from django.db import transaction
 # from .forms import RegistrationForm # <-- Descomentaremos esto luego
 from django.urls import reverse_lazy # Para la redirección
 from .forms import UserProfileForm, BusinessConfigForm, StaffMemberForm, ServiceForm # <-- Importar el nuevo form
@@ -39,6 +39,8 @@ from django.template.loader import render_to_string
 from CoreApps.main.wasenderapi_utils import send_whatsapp_message
 
 from .forms import EmailAuthenticationForm
+import logging
+logger = logging.getLogger(__name__)
 
 #pagina principal
 class HomePageView(TemplateView):
@@ -102,7 +104,7 @@ class RegistrationView(TemplateView):
         last_name = request.POST.get('last_name', '').strip()
         business_name = request.POST.get('business_name', '').strip()
 
-        # --- Validaciones básicas (un Form sería mejor) ---
+        # --- Validaciones básicas ---
         if not all([email, password, first_name, last_name, business_name]):
             messages.error(request, "Todos los campos son obligatorios.")
             return self.get(request, *args, **kwargs)
@@ -111,65 +113,55 @@ class RegistrationView(TemplateView):
             messages.error(request, "Ya existe un usuario con este correo electrónico.")
             return self.get(request, *args, **kwargs)
 
-        # --- Creación de Objetos ---
+        # --- Creación de Objetos (BLINDADA) ---
         try:
-            # 1. Crear User
-            user = User.objects.create_user(
-                username=email, # Usar email como username
-                email=email,
-                password=password,
-                first_name=first_name,
-                last_name=last_name
-            )
+            # INICIO DEL BLOQUE ATÓMICO: O todo o nada.
+            with transaction.atomic():
+                # 1. Crear User
+                user = User.objects.create_user(
+                    username=email,
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name
+                )
 
-            # 2. Crear Business
-            business_slug = slugify(business_name)
-            counter = 1
-            while Business.objects.filter(slug=business_slug).exists():
-                business_slug = f"{slugify(business_name)}-{counter}"
-                counter += 1
+                # 2. Crear Business
+                business_slug = slugify(business_name)
+                counter = 1
+                while Business.objects.filter(slug=business_slug).exists():
+                    business_slug = f"{slugify(business_name)}-{counter}"
+                    counter += 1
 
-            business = Business.objects.create(
-                user=user,
-                display_name=business_name,
-                slug=business_slug
-            )
+                business = Business.objects.create(
+                    user=user,
+                    display_name=business_name,
+                    slug=business_slug
+                )
 
-            # --- INICIO DE LA MODIFICACIÓN (PASO 3) ---
-            
-            # 3. Crear StaffMember por defecto para el dueño (YA NO LO HACEMOS)
-            # Hemos comentado este bloque. Ahora el dueño es solo admin
-            # y debe añadirse manualmente si quiere ser staff.
-            
-            # StaffMember.objects.create(
-            #     business=business,
-            #     name=f"{first_name} {last_name}", # Usar nombre del dueño
-            #     user=user # Asociar al mismo User
-            # )
-            
-            # --- FIN DE LA MODIFICACIÓN ---
+                # 3. Crear Subscription en modo TRIAL
+                trial_days = 15
+                trial_end = date.today() + timedelta(days=trial_days)
+                Subscription.objects.create(
+                    business=business,
+                    plan=plan,
+                    status=Subscription.SubscriptionStatus.TRIAL,
+                    trial_end_date=trial_end
+                )
+            # FIN DEL BLOQUE ATÓMICO
 
-            # 4. Crear Subscription en modo TRIAL
-            trial_days = 30
-            trial_end = date.today() + timedelta(days=trial_days)
-            Subscription.objects.create(
-                business=business,
-                plan=plan,
-                status=Subscription.SubscriptionStatus.TRIAL,
-                trial_end_date=trial_end
-            )
-
-            # 5. Iniciar Sesión
+            # 4. Iniciar Sesión (Esto va fuera, no es base de datos)
             login(request, user)
 
-            # 6. Redirigir al Dashboard
+            # 5. Redirigir al Dashboard
             messages.success(request, f"¡Bienvenido a Tivy! Tu prueba gratuita del plan {plan.name} ha comenzado.")
             return redirect('dashboard')
 
         except Exception as e:
-            # Captura de error genérica (mejorar con logging)
-            print(f"Error durante el registro: {e}")
-            messages.error(request, "Ocurrió un error inesperado durante el registro. Por favor, intenta de nuevo.")
+            # Si algo falló arriba, Django ya hizo rollback automático.
+            # Aquí solo registramos el error y avisamos al usuario.
+            logger.error(f"Error CRÍTICO durante el registro (Rollback ejecutado): {e}")
+            messages.error(request, "Ocurrió un error inesperado al crear tu cuenta. Por favor, intenta de nuevo.")
             return self.get(request, *args, **kwargs)
 
 def login_view(request):
@@ -1591,109 +1583,128 @@ class ConfirmBookingView(TemplateView):
             messages.error(request, "Por favor completa los campos obligatorios.")
             return self.render_to_response(self.get_context_data())
 
-        # --- LÓGICA DE USUARIO / CUSTOMER ---
-        
-        user = User.objects.filter(email=email).first()
-        if not user:
-            temp_password = User.objects.make_random_password()
-            user = User.objects.create_user(
-                username=email,
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
-                phone_number=phone_number,
-                password=temp_password
-            )
-            print(f"DEBUG: Usuario creado {email} - Pass: {temp_password}")
-        else:
-            if phone_number and not user.phone_number:
-                user.phone_number = phone_number
-                user.save(update_fields=['phone_number'])
-
-        # --- AUTO-LOGIN ---
-        if not request.user.is_authenticated:
-            user.backend = 'CoreApps.main.backends.EmailAuthBackend'
-            login(request, user)
-            print(f"DEBUG: Auto-login forzado para {user.email}")
-
-        customer, created = Customer.objects.get_or_create(
-            user=user,
-            business=business
-        )
-        
-        if location_type == 'DOMICILIO' and address:
-            customer.address_line = address
-            customer.save(update_fields=['address_line'])
-
-        # --- CREACIÓN DE LA CITA ---
         try:
-            t_date = datetime.strptime(str(data['date']), '%Y-%m-%d').date()
-            t_time = datetime.strptime(str(data['time']), '%H:%M').time()
-            start_dt = timezone.make_aware(datetime.combine(t_date, t_time))
-            end_dt = start_dt + service.duration
-        except ValueError:
-            messages.error(request, "Error de fecha al guardar.")
-            return redirect('business_profile', slug=business.slug)
-
-        appointment = Appointment.objects.create(
-            business=business,
-            staff_member=staff_member,
-            customer=customer,
-            service=service,
-            start_time=start_dt,
-            end_time=end_dt,
-            status='SCHEDULED'
-        )
-
-        # --- 🚀 INTEGRACIÓN WASENDER API (CORREGIDA Y BLINDADA) 🚀 ---
-        try:
-            phone_to_send = phone_number or user.phone_number
-            
-            if phone_to_send:
-                # INTENTO SEGURO DE OBTENER DATOS DEL NEGOCIO
-                # Intenta buscar 'business_name', si no existe usa 'name', si no, usa str(business)
-                b_name = getattr(business, 'business_name', getattr(business, 'name', str(business)))
-                
-                # Intenta buscar 'address', si no existe busca 'address_line', si no, texto genérico
-                b_address = getattr(business, 'address', getattr(business, 'address_line', 'Ubicación del negocio'))
-
-                message_context = {
-                    'customer_name': user.first_name,
-                    'service': service,
-                    'staff': staff_member,
-                    'business': business,
-                    
-                    # Usamos las variables seguras que calculamos arriba
-                    'business_name': b_name,       
-                    'business_address': b_address, 
-                    
-                    'customer': customer,
-                    'appointment': appointment,
-                    'date': start_dt.strftime('%A, %d de %B'),
-                    'time': start_dt.strftime('%I:%M %p'),
-                }
-                
-                message_body = render_to_string('appointments/messages/wa_confirmation.txt', message_context)
-                
-                print(f"DEBUG: Enviando WA a {phone_to_send}...")
-                success, response = send_whatsapp_message(phone_to_send, message_body)
-                
-                if not success:
-                    logger.warning(f"Fallo WASender: {response}")
+            # INICIO DEL BLOQUE ATÓMICO (Base de Datos)
+            with transaction.atomic():
+                # 1. Lógica de Usuario
+                user = User.objects.filter(email=email).first()
+                if not user:
+                    temp_password = User.objects.make_random_password()
+                    user = User.objects.create_user(
+                        username=email,
+                        email=email,
+                        first_name=first_name,
+                        last_name=last_name,
+                        phone_number=phone_number,
+                        password=temp_password
+                    )
+                    print(f"DEBUG: Usuario creado {email} - Pass: {temp_password}")
                 else:
-                    print(f"DEBUG: WA Enviado correctamente.")
+                    if phone_number and not user.phone_number:
+                        user.phone_number = phone_number
+                        user.save(update_fields=['phone_number'])
+
+                # 2. Auto-Login seguro
+                if not request.user.is_authenticated:
+                    user.backend = 'CoreApps.main.backends.EmailAuthBackend'
+                    login(request, user)
+                    print(f"DEBUG: Auto-login forzado para {user.email}")
+
+                # 3. Crear Customer
+                customer, created = Customer.objects.get_or_create(
+                    user=user,
+                    business=business
+                )
+                
+                if location_type == 'DOMICILIO' and address:
+                    customer.address_line = address
+                    customer.save(update_fields=['address_line'])
+
+                # 4. Cálculos de Fecha
+                t_date = datetime.strptime(str(data['date']), '%Y-%m-%d').date()
+                t_time = datetime.strptime(str(data['time']), '%H:%M').time()
+                start_dt = timezone.make_aware(datetime.combine(t_date, t_time))
+                end_dt = start_dt + service.duration
+
+                # 5. Validación de Conflicto (Locking manual)
+                overlap = Appointment.objects.filter(
+                    staff_member=staff_member,
+                    status__in=['SCHEDULED', 'CONFIRMED'], 
+                    start_time__lt=end_dt,
+                    end_time__gt=start_dt
+                ).exists()
+
+                if overlap:
+                    # Lanzamos una excepción manual para activar el rollback
+                    raise ValueError("HORARIO_OCUPADO")
+
+                # 6. Crear la Cita
+                appointment = Appointment.objects.create(
+                    business=business,
+                    staff_member=staff_member,
+                    customer=customer,
+                    service=service,
+                    start_time=start_dt,
+                    end_time=end_dt,
+                    status='SCHEDULED'
+                )
+            # FIN DEL BLOQUE ATÓMICO (La cita ya existe y es segura)
+
+            # --- ZONA NO CRÍTICA: NOTIFICACIONES ---
+            # Si esto falla, NO importa, la cita ya se guardó.
+            try:
+                phone_to_send = phone_number or user.phone_number
+                if phone_to_send:
+                    b_name = getattr(business, 'business_name', getattr(business, 'name', str(business)))
+                    b_address = getattr(business, 'address', getattr(business, 'address_line', 'Ubicación del negocio'))
+
+                    message_context = {
+                        'customer_name': user.first_name,
+                        'service': service,
+                        'staff': staff_member,
+                        'business': business,
+                        'business_name': b_name,
+                        'business_address': b_address,
+                        'customer': customer,
+                        'appointment': appointment,
+                        'date': start_dt.strftime('%A, %d de %B'),
+                        'time': start_dt.strftime('%I:%M %p'),
+                    }
+                    
+                    message_body = render_to_string('appointments/messages/wa_confirmation.txt', message_context)
+                    
+                    print(f"DEBUG: Enviando WA a {phone_to_send}...")
+                    success, response = send_whatsapp_message(phone_to_send, message_body)
+                    
+                    if not success:
+                        logger.warning(f"Fallo WASender: {response}")
+                    else:
+                        print(f"DEBUG: WA Enviado correctamente.")
+                else:
+                    logger.warning(f"Cliente {user.email} sin teléfono. No se envió WA.")
+            except Exception as e:
+                logger.error(f"Error CRÍTICO enviando notificación WhatsApp (Pero la cita se guardó): {e}")
+            
+            # --- Finalización ---
+            request.session.pop('booking_data', None)
+            messages.success(request, "¡Cita confirmada exitosamente!")
+            return redirect('booking_confirmed', pk=appointment.pk)
+
+        except ValueError as e:
+            if str(e) == "HORARIO_OCUPADO":
+                messages.error(request, "Lo sentimos, este horario acaba de ser ocupado. Por favor elige otro.")
+                return redirect('business_profile', slug=business.slug)
             else:
-                logger.warning(f"Cliente {user.email} sin teléfono. No se envió WA.")
-
+                # Error de fecha u otro valor
+                logger.error(f"Error de valor en booking: {e}")
+                messages.error(request, "Error en los datos de la cita.")
+                return redirect('business_profile', slug=business.slug)
+                
         except Exception as e:
-            # AHORA SÍ funcionará este log porque definimos logger arriba
-            logger.error(f"Error CRÍTICO enviando notificación WhatsApp: {e}")
-        # --- 🏁 FIN INTEGRACIÓN ---
-
-        request.session.pop('booking_data', None)
-        
-        messages.success(request, "¡Cita confirmada exitosamente!")
-        return redirect('booking_confirmed', pk=appointment.pk)
+            # Error grave de base de datos
+            logger.error(f"Error CRÍTICO en booking (Rollback ejecutado): {e}")
+            messages.error(request, "Ocurrió un error inesperado. Inténtalo de nuevo.")
+            return redirect('business_profile', slug=business.slug)
 #confirmación de la cita con sus datos, pantalla final.
 class BookingConfirmedView(DetailView):
     """

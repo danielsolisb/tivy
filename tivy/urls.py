@@ -18,10 +18,17 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import TemplateView
+
+def trigger_error(request):
+    division_by_zero = 1 / 0
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('CoreApps.main.urls')), 
+    path('sentry-debug/', trigger_error),
+    path('test-404/', TemplateView.as_view(template_name="404.html")),
+    path('test-500/', TemplateView.as_view(template_name="500.html")),
 ]
 
 if settings.DEBUG:

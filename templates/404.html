@@ -1,0 +1,107 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 | Página no encontrada | Tivy</title>
+    <link href="{% static 'css-auralis/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css-auralis/nifty.min.css' %}" rel="stylesheet">
+    <link href="{% static 'fontawesome/css/all.min.css' %}" rel="stylesheet"> {# Asegúrate de tener Font Awesome #}
+
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #E8EAF6; /* Fondo suave de Tivy */
+            color: #424242; /* Texto gris oscuro */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .error-container {
+            text-align: center;
+            padding: 40px;
+            background: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 90%;
+        }
+        .error-code {
+            font-size: 150px;
+            font-weight: 900;
+            color: #5C6BC0; /* Color primario de Tivy */
+            line-height: 1;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .error-code::before {
+            content: "\f133"; /* Ícono de calendario de Font Awesome */
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%) translateY(-70%); /* Ajustar posición */
+            font-size: 80px;
+            color: rgba(92, 107, 192, 0.15); /* Versión más suave del color primario */
+            z-index: -1;
+        }
+        .error-title {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #424242;
+        }
+        .error-message {
+            font-size: 18px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .btn-tivy-primary {
+            background-color: #5C6BC0;
+            border-color: #5C6BC0;
+            color: white;
+            padding: 12px 25px;
+            font-size: 18px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+        .btn-tivy-primary:hover {
+            background-color: #485799;
+            border-color: #485799;
+            color: white;
+        }
+        .btn-link-back {
+            color: #5C6BC0;
+            text-decoration: none;
+            margin-top: 15px;
+            display: inline-block;
+            font-size: 16px;
+        }
+        .btn-link-back:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-code">404</div>
+        <h1 class="error-title">¡Ups! Te has perdido en el tiempo.</h1>
+        <p class="error-message">
+            La página que buscas no se encuentra en nuestra agenda.<br>
+            Parece que hemos perdido el rastro de esa cita o recurso.
+        </p>
+        <div>
+            <a class="btn btn-tivy-primary" href="{% url 'home' %}">
+                <i class="fas fa-home me-2"></i> Volver al Inicio
+            </a>
+            <br>
+            <a href="javascript:history.back()" class="btn-link-back">
+                <i class="fas fa-arrow-left me-2"></i> Volver a la página anterior
+            </a>
+        </div>
+    </div>
+</body>
+</html>
